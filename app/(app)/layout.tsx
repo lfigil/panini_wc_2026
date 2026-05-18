@@ -15,7 +15,7 @@ export default async function AppLayout({
 
   // Get profile
   const { data: profile } = await supabase
-    .from("panini.profiles")
+    .from("profiles")
     .select("display_name")
     .eq("id", user.id)
     .single();

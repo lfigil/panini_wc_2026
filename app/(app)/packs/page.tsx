@@ -10,19 +10,17 @@ export default async function PacksPage() {
   const [{ data: boxes }, { data: packLogs }, { data: stickers }] =
     await Promise.all([
       supabase
-        .schema("panini")
         .from("boxes")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false }),
       supabase
-        .schema("panini")
         .from("pack_logs")
         .select("*, boxes(box_type)")
         .eq("user_id", user.id)
         .order("opened_at", { ascending: false })
         .limit(50),
-      supabase.schema("panini").from("stickers").select("id,description,team_code"),
+      supabase.from("stickers").select("id,description,team_code"),
     ]);
 
   return (

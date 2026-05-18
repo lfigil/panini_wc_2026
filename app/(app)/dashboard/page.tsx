@@ -8,7 +8,6 @@ export default async function DashboardPage() {
 
   // Overall completion
   const { data: completion } = await supabase
-    .schema("panini")
     .from("user_completion")
     .select("*")
     .eq("user_id", user.id)
@@ -16,7 +15,6 @@ export default async function DashboardPage() {
 
   // Per-team completion
   const { data: teamCompletion } = await supabase
-    .schema("panini")
     .from("user_team_completion")
     .select("*")
     .eq("user_id", user.id)
@@ -24,7 +22,6 @@ export default async function DashboardPage() {
 
   // Recent packs
   const { data: recentPacks } = await supabase
-    .schema("panini")
     .from("pack_logs")
     .select("*, boxes(box_type)")
     .eq("user_id", user.id)

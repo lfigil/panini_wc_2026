@@ -9,10 +9,9 @@ export default async function AlbumPage() {
 
   const [{ data: teams }, { data: stickers }, { data: collection }] =
     await Promise.all([
-      supabase.schema("panini").from("teams").select("*").order("name"),
-      supabase.schema("panini").from("stickers").select("*").order("number"),
+      supabase.from("teams").select("*").order("name"),
+      supabase.from("stickers").select("*").order("number"),
       supabase
-        .schema("panini")
         .from("collections")
         .select("sticker_id, variant, quantity")
         .eq("user_id", user.id),

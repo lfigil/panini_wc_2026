@@ -130,7 +130,6 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
 
       // Insert pack log
       const { data: packLog, error: packErr } = await supabase
-        .schema("panini")
         .from("pack_logs")
         .insert({
           user_id: userId,
@@ -150,7 +149,6 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
         const ref = parseStickerRef(raw);
         // Check if exists
         const { data: existing } = await supabase
-          .schema("panini")
           .from("collections")
           .select("id, quantity")
           .eq("user_id", userId)
@@ -160,12 +158,11 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
 
         if (existing) {
           await supabase
-            .schema("panini")
             .from("collections")
             .update({ quantity: existing.quantity + 1 })
             .eq("id", existing.id);
         } else {
-          await supabase.schema("panini").from("collections").insert({
+          await supabase.from("collections").insert({
             user_id: userId,
             sticker_id: ref.id,
             variant: ref.variant,
@@ -183,7 +180,6 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
       }).length;
 
       await supabase
-        .schema("panini")
         .from("pack_logs")
         .update({ new_count: newCount })
         .eq("id", packLog.id);
@@ -207,7 +203,6 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
   async function createBox() {
     setCreatingBox(true);
     const { data, error } = await supabase
-      .schema("panini")
       .from("boxes")
       .insert({
         user_id: userId,
@@ -352,6 +347,9 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
                         setManualInputs(next);
                       }}
                       placeholder={`Sticker ${i + 1} e.g. ARG17`}
+                      spellCheck={false}
+                      autoCorrect="off"
+                      autoCapitalize="characters"
                       className="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-200 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
                     />
                   </div>
@@ -372,6 +370,9 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
                 onChange={(e) => setBulkText(e.target.value.toUpperCase())}
                 placeholder={"ARG17 ESP15 MEX3 BRA8-ORANGE\nARG2 FRA7 GER11"}
                 rows={5}
+                spellCheck={false}
+                autoCorrect="off"
+                autoCapitalize="characters"
                 className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               />
               <p className="text-xs text-gray-400 mt-1">

@@ -8,6 +8,7 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      db: { schema: "panini" },
       cookies: {
         getAll() {
           return cookieStore.getAll();
@@ -18,7 +19,7 @@ export async function createClient() {
               cookieStore.set(name, value, options);
             });
           } catch {
-            // Server component — cookie setting is handled by middleware
+            // Server component — cookie setting handled by middleware
           }
         },
       },
