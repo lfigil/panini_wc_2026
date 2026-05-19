@@ -148,9 +148,15 @@ export default function AlbumGrid({ teams, stickers, collection }: Props) {
                   style={{
                     position: "relative",
                     borderRadius: "10px",
-                    border: isOwned ? "1.5px solid #bfdbfe" : "1.5px solid #e5e7eb",
-                    background: isOwned ? "#eff6ff" : "white",
-                    opacity: isOwned ? 1 : 0.4,
+                    border: sticker.is_foil
+                      ? isOwned ? "1.5px solid #f59e0b" : "1.5px solid #fde68a"
+                      : isOwned ? "1.5px solid #bfdbfe" : "1.5px solid #e5e7eb",
+                    background: sticker.is_foil
+                      ? isOwned
+                        ? "linear-gradient(135deg, #fef9c3, #fde68a, #fef3c7)"
+                        : "linear-gradient(135deg, #fefce8, #fef9c3)"
+                      : isOwned ? "#eff6ff" : "white",
+                    opacity: isOwned ? 1 : 0.45,
                     padding: "10px 4px 8px",
                     textAlign: "center",
                     minHeight: "60px",
@@ -172,16 +178,6 @@ export default function AlbumGrid({ teams, stickers, collection }: Props) {
                     }}>
                       {totalQty}
                     </div>
-                  )}
-
-                  {/* Foil pill — light gold background, no text */}
-                  {sticker.is_foil && (
-                    <div style={{
-                      position: "absolute", top: "3px", left: "3px",
-                      background: "linear-gradient(135deg, #fde68a, #fbbf24)",
-                      borderRadius: "4px",
-                      width: "8px", height: "8px",
-                    }} />
                   )}
 
                   {/* Sticker ID */}

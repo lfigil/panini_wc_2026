@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Box, BOX_TYPE_LABELS, BOX_TYPE_PACKS, BoxType, parseStickerRef } from "@/lib/types";
-import { Package, Plus, Camera, List, Hash, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { Package, Plus, Camera, List, Hash, ChevronDown, ChevronUp, Loader2, Pencil, Check, X } from "lucide-react";
 
 interface PackLog {
   id: string;
@@ -43,6 +43,12 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Edit log state
+  const [editingLogId, setEditingLogId] = useState<string | null>(null);
+  const [editInputs, setEditInputs] = useState<string[]>(Array(7).fill(""));
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   // New box state
   const [showNewBox, setShowNewBox] = useState(false);
@@ -187,8 +193,11 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
         .update({ new_count: newCount })
         .eq("id", packLog.id);
 
-      // Update local state
-      setLogs((prev) => [{ ...packLog, new_count: newCount }, ...prev]);
+      // Update local state — attach boxes join so history tab shows the correct box type
+      setLogs((prev) => [
+        { ...packLog, new_count: newCount, boxes: selectedBox ? { box_type: selectedBox.box_type } : null },
+        ...prev,
+      ]);
       setSuccess(`Pack logged! ${newCount} new stickers.`);
 
       // Reset inputs
@@ -223,6 +232,114 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
       setNewBoxNotes("");
     }
     setCreatingBox(false);
+  }
+
+  function startEdit(log: PackLog) {
+    setEditingLogId(log.id);
+    setEditInputs([...log.sticker_ids, ...Array(7).fill("")].slice(0, 7));
+    setEditError(null);
+  }
+
+  function cancelEdit() {
+    setEditingLogId(null);
+    setEditInputs(Array(7).fill(""));
+    setEditError(null);
+  }
+
+  async function saveEdit(logId: string) {
+    setEditError(null);
+    const ids = editInputs.map((s) => s.trim().toUpperCase()).filter(Boolean);
+
+    if (ids.length !== 7) {
+      setEditError(`Need exactly 7 stickers. You have ${ids.length}.`);
+      return;
+    }
+
+    const { valid, invalid } = validateIds(ids);
+    if (invalid.length > 0) {
+      setEditError(`Unknown sticker IDs: ${invalid.join(", ")}`);
+      return;
+    }
+
+    setEditSaving(true);
+    try {
+      const currentLog = logs.find((l) => l.id === logId);
+      const oldIds = currentLog?.sticker_ids ?? [];
+
+      // Diff old vs new to find what changed
+      const removed = oldIds.filter((old) => !valid.includes(old));
+      const added = valid.filter((n) => !oldIds.includes(n));
+
+      // Decrement collection for removed stickers
+      for (const raw of removed) {
+        const ref = parseStickerRef(raw);
+        const { data: existing } = await supabase
+          .from("collections")
+          .select("id, quantity")
+          .eq("user_id", userId)
+          .eq("sticker_id", ref.id)
+          .eq("variant", ref.variant)
+          .maybeSingle();
+
+        if (existing) {
+          if (existing.quantity <= 1) {
+            await supabase.from("collections").delete().eq("id", existing.id);
+          } else {
+            await supabase
+              .from("collections")
+              .update({ quantity: existing.quantity - 1 })
+              .eq("id", existing.id);
+          }
+        }
+      }
+
+      // Increment collection for added stickers
+      for (const raw of added) {
+        const ref = parseStickerRef(raw);
+        const { data: existing } = await supabase
+          .from("collections")
+          .select("id, quantity")
+          .eq("user_id", userId)
+          .eq("sticker_id", ref.id)
+          .eq("variant", ref.variant)
+          .maybeSingle();
+
+        if (existing) {
+          await supabase
+            .from("collections")
+            .update({ quantity: existing.quantity + 1 })
+            .eq("id", existing.id);
+        } else {
+          await supabase
+            .from("collections")
+            .insert({ user_id: userId, sticker_id: ref.id, variant: ref.variant, quantity: 1 });
+        }
+      }
+
+      const otherLogs = logs.filter((l) => l.id !== logId);
+      const newCount = valid.filter((raw) => {
+        const ref = parseStickerRef(raw);
+        return !otherLogs.some((l) =>
+          l.sticker_ids.some((s) => parseStickerRef(s).id === ref.id)
+        );
+      }).length;
+
+      const { error: updateErr } = await supabase
+        .from("pack_logs")
+        .update({ sticker_ids: valid, new_count: newCount })
+        .eq("id", logId);
+
+      if (updateErr) throw updateErr;
+
+      setLogs((prev) =>
+        prev.map((l) => l.id === logId ? { ...l, sticker_ids: valid, new_count: newCount } : l)
+      );
+      cancelEdit();
+    } catch (err: unknown) {
+      setEditError(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setEditSaving(false);
+    }
   }
 
   const selectedBox = boxes.find((b) => b.id === selectedBoxId);
@@ -526,60 +643,126 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
               <p className="text-sm">No packs logged yet</p>
             </div>
           ) : (
-            logs.map((log) => (
-              <div key={log.id} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <p className="text-xs font-semibold text-gray-700">
-                      {log.boxes?.box_type
-                        ? BOX_TYPE_LABELS[log.boxes.box_type as BoxType]
-                        : "Loose pack"}
-                      {log.pack_number ? ` · #${log.pack_number}` : ""}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {new Date(log.opened_at).toLocaleDateString()} ·{" "}
-                      <span className="capitalize">{log.input_method}</span>
-                    </p>
-                  </div>
-                  <span
-                    className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                      log.new_count > 4
-                        ? "bg-green-100 text-green-700"
-                        : log.new_count > 2
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-gray-100 text-gray-600"
-                    }`}
-                  >
-                    {log.new_count} new
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {log.sticker_ids.map((sid, i) => {
-                    const parts = sid.split("-");
-                    const variant = parts.length > 1 ? parts[parts.length - 1].toLowerCase() : "standard";
-                    // All 6 parallels + standard
-                    const variantStyle: Record<string, string> = {
-                      standard: "bg-gray-50 border-gray-200 text-gray-700",
-                      orange:   "bg-orange-100 border-orange-400 text-orange-900",
-                      blue:     "bg-blue-100 border-blue-400 text-blue-900",
-                      red:      "bg-red-100 border-red-400 text-red-900",
-                      green:    "bg-green-100 border-green-400 text-green-900",
-                      purple:   "bg-purple-100 border-purple-400 text-purple-900",
-                      black:    "bg-gray-800 border-gray-900 text-white",
-                    };
-                    const cls = variantStyle[variant] ?? "bg-gray-100 border-gray-300 text-gray-700";
-                    return (
+            logs.map((log) => {
+              const isEditing = editingLogId === log.id;
+              return (
+                <div key={log.id} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-700">
+                        {log.boxes?.box_type
+                          ? BOX_TYPE_LABELS[log.boxes.box_type as BoxType]
+                          : "Loose pack"}
+                        {log.pack_number ? ` · #${log.pack_number}` : ""}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {new Date(log.opened_at).toLocaleDateString()} ·{" "}
+                        <span className="capitalize">{log.input_method}</span>
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
                       <span
-                        key={i}
-                        className={`font-mono text-xs border rounded px-1.5 py-0.5 font-medium ${cls}`}
+                        className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                          log.new_count > 4
+                            ? "bg-green-100 text-green-700"
+                            : log.new_count > 2
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-gray-100 text-gray-600"
+                        }`}
                       >
-                        {sid}
+                        {log.new_count} new
                       </span>
-                    );
-                  })}
+                      {!isEditing && (
+                        <button
+                          onClick={() => startEdit(log)}
+                          className="text-gray-400 hover:text-blue-600 transition-colors"
+                          aria-label="Edit pack"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-1 gap-1.5">
+                        {Array.from({ length: 7 }, (_, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <span className="text-xs text-gray-400 w-5 text-right">{i + 1}</span>
+                            <input
+                              type="text"
+                              value={editInputs[i] ?? ""}
+                              onChange={(e) => {
+                                const next = [...editInputs];
+                                next[i] = e.target.value.toUpperCase();
+                                setEditInputs(next);
+                              }}
+                              spellCheck={false}
+                              autoCorrect="off"
+                              autoCapitalize="characters"
+                              className={`flex-1 px-3 py-1.5 text-sm rounded-lg border font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase text-gray-900 bg-white ${
+                                editInputs[i]
+                                  ? stickerIds.has(parseStickerRef(editInputs[i]).id)
+                                    ? "border-green-300"
+                                    : "border-red-300"
+                                  : "border-gray-300"
+                              }`}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      {editError && (
+                        <p className="text-xs text-red-600">{editError}</p>
+                      )}
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          onClick={() => saveEdit(log.id)}
+                          disabled={editSaving}
+                          className="flex-1 flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-xs font-semibold py-2 rounded-lg transition-colors"
+                        >
+                          {editSaving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                          Save
+                        </button>
+                        <button
+                          onClick={cancelEdit}
+                          disabled={editSaving}
+                          className="flex-1 flex items-center justify-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold py-2 rounded-lg transition-colors"
+                        >
+                          <X size={13} />
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {log.sticker_ids.map((sid, i) => {
+                        const parts = sid.split("-");
+                        const variant = parts.length > 1 ? parts[parts.length - 1].toLowerCase() : "standard";
+                        const variantStyle: Record<string, string> = {
+                          standard: "bg-gray-50 border-gray-200 text-gray-700",
+                          orange:   "bg-orange-100 border-orange-400 text-orange-900",
+                          blue:     "bg-blue-100 border-blue-400 text-blue-900",
+                          red:      "bg-red-100 border-red-400 text-red-900",
+                          green:    "bg-green-100 border-green-400 text-green-900",
+                          purple:   "bg-purple-100 border-purple-400 text-purple-900",
+                          black:    "bg-gray-800 border-gray-900 text-white",
+                        };
+                        const cls = variantStyle[variant] ?? "bg-gray-100 border-gray-300 text-gray-700";
+                        return (
+                          <span
+                            key={i}
+                            className={`font-mono text-xs border rounded px-1.5 py-0.5 font-medium ${cls}`}
+                          >
+                            {sid}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       )}
