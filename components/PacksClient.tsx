@@ -257,7 +257,7 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
             <select
               value={selectedBoxId}
               onChange={(e) => setSelectedBoxId(e.target.value)}
-              className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+              className="w-full text-sm px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2 text-gray-900"
             >
               <option value="">— Loose pack (no box) —</option>
               {boxes.map((b) => (
@@ -286,7 +286,7 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
                 <select
                   value={newBoxType}
                   onChange={(e) => setNewBoxType(e.target.value as BoxType)}
-                  className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full text-sm px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                 >
                   {Object.entries(BOX_TYPE_LABELS).map(([k, v]) => (
                     <option key={k} value={k}>{v}</option>
@@ -297,7 +297,7 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
                   placeholder="Notes (optional — retailer, batch…)"
                   value={newBoxNotes}
                   onChange={(e) => setNewBoxNotes(e.target.value)}
-                  className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full text-sm px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-400"
                 />
                 <button
                   onClick={createBox}
@@ -350,7 +350,7 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
                       spellCheck={false}
                       autoCorrect="off"
                       autoCapitalize="characters"
-                      className="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-200 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                      className="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-300 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase text-gray-900 placeholder-gray-400 bg-white"
                     />
                   </div>
                 ))}
@@ -373,7 +373,7 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
                 spellCheck={false}
                 autoCorrect="off"
                 autoCapitalize="characters"
-                className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-gray-900 placeholder-gray-400 bg-white"
               />
               <p className="text-xs text-gray-400 mt-1">
                 {bulkText.split(/[\s,\n]+/).filter(Boolean).length}/7 stickers
@@ -424,7 +424,7 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
                             while (next.length < 7) next.push("");
                             setScanPreview(next.slice(0, 7));
                           }}
-                          className={`flex-1 px-3 py-1.5 text-sm rounded-lg border font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase ${
+                          className={`flex-1 px-3 py-1.5 text-sm rounded-lg border font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase text-gray-900 ${
                             scanPreview[i]
                               ? stickerIds.has(parseStickerRef(scanPreview[i]).id)
                                 ? "border-green-300 bg-green-50"
@@ -551,14 +551,23 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-1">
-                  {log.sticker_ids.map((sid, i) => (
-                    <span
-                      key={i}
-                      className="font-mono text-xs bg-gray-50 border border-gray-200 rounded px-1.5 py-0.5 text-gray-700"
-                    >
-                      {sid}
-                    </span>
-                  ))}
+                  {log.sticker_ids.map((sid, i) => {
+                    const parts = sid.split("-");
+                    const variant = parts.length > 1 ? parts[parts.length - 1].toLowerCase() : "standard";
+                    const variantStyle =
+                      variant === "orange" ? "bg-orange-100 border-orange-300 text-orange-800"
+                      : variant === "blue"  ? "bg-blue-100 border-blue-300 text-blue-800"
+                      : variant === "standard" ? "bg-gray-50 border-gray-200 text-gray-700"
+                      : "bg-purple-100 border-purple-300 text-purple-800";
+                    return (
+                      <span
+                        key={i}
+                        className={`font-mono text-xs border rounded px-1.5 py-0.5 font-medium ${variantStyle}`}
+                      >
+                        {sid}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
             ))
