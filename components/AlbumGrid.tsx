@@ -15,15 +15,7 @@ interface Props {
   collection: CollectionRow[];
 }
 
-// Variant color config
-const VARIANT_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-  orange: { bg: "bg-orange-100", text: "text-orange-700", label: "ORA" },
-  blue:   { bg: "bg-blue-100",   text: "text-blue-700",   label: "BLU" },
-  other:  { bg: "bg-gray-100",   text: "text-gray-600",   label: "ALT" },
-};
-
 export default function AlbumGrid({ teams, stickers, collection }: Props) {
-  // FWC first, then alphabetical
   const sortedTeams = useMemo(() => {
     const fwc = teams.filter(t => t.code === "FWC");
     const rest = teams.filter(t => t.code !== "FWC").sort((a, b) => a.code.localeCompare(b.code));
@@ -33,6 +25,7 @@ export default function AlbumGrid({ teams, stickers, collection }: Props) {
   const [selectedTeam, setSelectedTeam] = useState<string>(sortedTeams[0]?.code ?? "");
   const [search, setSearch] = useState("");
 
+  // sticker_id -> all collection rows for that sticker
   const owned = useMemo(() => {
     const map = new Map<string, CollectionRow[]>();
     for (const row of collection) {
@@ -44,9 +37,9 @@ export default function AlbumGrid({ teams, stickers, collection }: Props) {
 
   const filteredTeams = useMemo(() => {
     if (!search) return sortedTeams;
-    return sortedTeams.filter(
-      t => t.name.toLowerCase().includes(search.toLowerCase()) ||
-           t.code.toLowerCase().includes(search.toLowerCase())
+    const q = search.toLowerCase();
+    return sortedTeams.filter(t =>
+      t.name.toLowerCase().includes(q) || t.code.toLowerCase().includes(q)
     );
   }, [sortedTeams, search]);
 
@@ -61,22 +54,29 @@ export default function AlbumGrid({ teams, stickers, collection }: Props) {
   );
 
   const currentTeam = teams.find(t => t.code === selectedTeam);
+  const pct = teamStickers.length > 0 ? Math.round(teamCollected / teamStickers.length * 100) : 0;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 7.5rem)" }}>
-      {/* Search bar */}
-      <div className="bg-white border-b border-gray-100 px-3 py-2">
+
+      {/* Search */}
+      <div style={{ background: "white", borderBottom: "1px solid #f3f4f6", padding: "8px 12px" }}>
         <input
           type="text"
           placeholder="Search teams..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full px-3 py-2 text-sm rounded-lg bg-gray-100 border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-500"
+          style={{
+            width: "100%", padding: "8px 12px", fontSize: "14px",
+            borderRadius: "8px", border: "none", background: "#f3f4f6",
+            color: "#111827", outline: "none", boxSizing: "border-box",
+          }}
         />
       </div>
 
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-        {/* Team sidebar — independently scrollable */}
+
+        {/* Team sidebar */}
         <div style={{ width: "64px", flexShrink: 0, overflowY: "auto", background: "white", borderRight: "1px solid #f3f4f6" }}>
           {filteredTeams.map(team => {
             const ts = stickers.filter(s => s.team_code === team.code);
@@ -90,20 +90,18 @@ export default function AlbumGrid({ teams, stickers, collection }: Props) {
                 key={team.code}
                 onClick={() => setSelectedTeam(team.code)}
                 style={{
-                  width: "100%",
-                  padding: "10px 4px",
-                  textAlign: "center",
+                  width: "100%", padding: "10px 4px", textAlign: "center",
                   borderBottom: "1px solid #f9fafb",
                   borderLeft: active ? "3px solid #2563eb" : "3px solid transparent",
                   background: active ? "#eff6ff" : isFWC ? "#fefce8" : "white",
                   cursor: "pointer",
-                  transition: "background 0.1s",
                 }}
               >
-                <p style={{ fontSize: "11px", fontWeight: 700, color: active ? "#1d4ed8" : isFWC ? "#92400e" : "#374151", lineHeight: 1 }}>
+                <p style={{ fontSize: "11px", fontWeight: 700, lineHeight: 1,
+                  color: active ? "#1d4ed8" : isFWC ? "#92400e" : "#374151" }}>
                   {team.code}
                 </p>
-                <p style={{ fontSize: "10px", color: isComplete ? "#16a34a" : "#9ca3af", marginTop: "2px" }}>
+                <p style={{ fontSize: "10px", marginTop: "2px", color: isComplete ? "#16a34a" : "#9ca3af" }}>
                   {tc}/{ts.length}
                 </p>
               </button>
@@ -111,79 +109,97 @@ export default function AlbumGrid({ teams, stickers, collection }: Props) {
           })}
         </div>
 
-        {/* Sticker grid — independently scrollable */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "12px" }}>
+        {/* Sticker grid */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "10px 10px 16px" }}>
+
           {/* Team header */}
-          <div className="flex items-center justify-between mb-2">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
             <div>
-              <h2 className="font-semibold text-gray-900 text-sm">{currentTeam?.name}</h2>
-              <p className="text-xs text-gray-500">
-                {teamCollected}/{teamStickers.length} collected
-                {currentTeam?.group ? ` · Group ${currentTeam.group}` : ""}
+              <p style={{ fontWeight: 600, fontSize: "14px", color: "#111827" }}>{currentTeam?.name}</p>
+              <p style={{ fontSize: "11px", color: "#6b7280", marginTop: "1px" }}>
+                {teamCollected}/{teamStickers.length} collected{currentTeam?.group ? ` · Group ${currentTeam.group}` : ""}
               </p>
             </div>
-            <span className={`text-sm font-bold ${teamCollected === teamStickers.length ? "text-green-600" : "text-blue-600"}`}>
-              {teamStickers.length > 0 ? Math.round(teamCollected / teamStickers.length * 100) : 0}%
+            <span style={{ fontSize: "15px", fontWeight: 700, color: pct === 100 ? "#16a34a" : "#2563eb" }}>
+              {pct}%
             </span>
           </div>
 
           {/* Progress bar */}
-          <div className="w-full bg-gray-100 rounded-full h-1.5 mb-3">
-            <div
-              className={`h-1.5 rounded-full ${teamCollected === teamStickers.length ? "bg-green-500" : "bg-blue-500"}`}
-              style={{ width: `${teamStickers.length > 0 ? teamCollected / teamStickers.length * 100 : 0}%` }}
-            />
+          <div style={{ width: "100%", height: "4px", background: "#e5e7eb", borderRadius: "99px", marginBottom: "10px" }}>
+            <div style={{
+              height: "4px", borderRadius: "99px",
+              width: `${pct}%`,
+              background: pct === 100 ? "#22c55e" : "#3b82f6",
+            }} />
           </div>
 
-          {/* Sticker cards — 4 columns */}
-          <div className="grid grid-cols-4 gap-1.5">
+          {/* Sticker grid — 4 cols, taller cards to fill space */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "6px" }}>
             {teamStickers.map(sticker => {
               const ownedRows = owned.get(sticker.id) ?? [];
               const isOwned = ownedRows.length > 0;
               const totalQty = ownedRows.reduce((s, r) => s + r.quantity, 0);
               const hasDupe = totalQty > 1;
-              const variants = ownedRows.map(r => r.variant).filter(v => v !== "standard");
 
               return (
                 <div
                   key={sticker.id}
-                  className={`relative rounded-lg border text-center transition-all ${
-                    isOwned ? "bg-blue-50 border-blue-200" : "bg-white border-gray-200"
-                  }`}
-                  style={{ padding: "6px 4px", opacity: isOwned ? 1 : 0.45 }}
+                  style={{
+                    position: "relative",
+                    borderRadius: "10px",
+                    border: isOwned ? "1.5px solid #bfdbfe" : "1.5px solid #e5e7eb",
+                    background: isOwned ? "#eff6ff" : "white",
+                    opacity: isOwned ? 1 : 0.4,
+                    padding: "10px 4px 8px",
+                    textAlign: "center",
+                    minHeight: "60px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "3px",
+                  }}
                 >
                   {/* Dupe badge */}
                   {hasDupe && (
-                    <div className="absolute -top-1 -right-1 bg-amber-400 text-white rounded-full flex items-center justify-center font-bold"
-                         style={{ width: "16px", height: "16px", fontSize: "9px" }}>
+                    <div style={{
+                      position: "absolute", top: "-5px", right: "-5px",
+                      background: "#f59e0b", color: "white",
+                      width: "17px", height: "17px", borderRadius: "99px",
+                      fontSize: "9px", fontWeight: 700,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
                       {totalQty}
                     </div>
                   )}
-                  {/* Foil — small gold diamond pill instead of emoji */}
+
+                  {/* Foil pill — light gold background, no text */}
                   {sticker.is_foil && (
-                    <div className="absolute top-0.5 left-0.5 bg-yellow-400 text-yellow-900 rounded"
-                         style={{ fontSize: "8px", fontWeight: 700, padding: "1px 3px", lineHeight: 1.2 }}>
-                      FOIL
-                    </div>
+                    <div style={{
+                      position: "absolute", top: "3px", left: "3px",
+                      background: "linear-gradient(135deg, #fde68a, #fbbf24)",
+                      borderRadius: "4px",
+                      width: "8px", height: "8px",
+                    }} />
                   )}
-                  {/* Sticker ID — primary info */}
-                  <p className={`font-bold font-mono ${isOwned ? "text-blue-700" : "text-gray-500"}`}
-                     style={{ fontSize: "11px" }}>
+
+                  {/* Sticker ID */}
+                  <p style={{
+                    fontFamily: "monospace", fontWeight: 700,
+                    fontSize: "12px",
+                    color: isOwned ? "#1d4ed8" : "#9ca3af",
+                    lineHeight: 1,
+                  }}>
                     {sticker.id}
                   </p>
-                  {/* Variant pills */}
-                  {variants.length > 0 && (
-                    <div className="flex flex-wrap gap-0.5 justify-center mt-0.5">
-                      {variants.map(v => {
-                        const style = VARIANT_STYLES[v] ?? VARIANT_STYLES.other;
-                        return (
-                          <span key={v} className={`${style.bg} ${style.text} rounded`}
-                                style={{ fontSize: "8px", fontWeight: 700, padding: "1px 3px" }}>
-                            {style.label}
-                          </span>
-                        );
-                      })}
-                    </div>
+
+                  {/* Owned indicator dot */}
+                  {isOwned && (
+                    <div style={{
+                      width: "5px", height: "5px", borderRadius: "99px",
+                      background: hasDupe ? "#f59e0b" : "#3b82f6",
+                    }} />
                   )}
                 </div>
               );

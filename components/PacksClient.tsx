@@ -554,15 +554,21 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
                   {log.sticker_ids.map((sid, i) => {
                     const parts = sid.split("-");
                     const variant = parts.length > 1 ? parts[parts.length - 1].toLowerCase() : "standard";
-                    const variantStyle =
-                      variant === "orange" ? "bg-orange-100 border-orange-300 text-orange-800"
-                      : variant === "blue"  ? "bg-blue-100 border-blue-300 text-blue-800"
-                      : variant === "standard" ? "bg-gray-50 border-gray-200 text-gray-700"
-                      : "bg-purple-100 border-purple-300 text-purple-800";
+                    // All 6 parallels + standard
+                    const variantStyle: Record<string, string> = {
+                      standard: "bg-gray-50 border-gray-200 text-gray-700",
+                      orange:   "bg-orange-100 border-orange-400 text-orange-900",
+                      blue:     "bg-blue-100 border-blue-400 text-blue-900",
+                      red:      "bg-red-100 border-red-400 text-red-900",
+                      green:    "bg-green-100 border-green-400 text-green-900",
+                      purple:   "bg-purple-100 border-purple-400 text-purple-900",
+                      black:    "bg-gray-800 border-gray-900 text-white",
+                    };
+                    const cls = variantStyle[variant] ?? "bg-gray-100 border-gray-300 text-gray-700";
                     return (
                       <span
                         key={i}
-                        className={`font-mono text-xs border rounded px-1.5 py-0.5 font-medium ${variantStyle}`}
+                        className={`font-mono text-xs border rounded px-1.5 py-0.5 font-medium ${cls}`}
                       >
                         {sid}
                       </span>
