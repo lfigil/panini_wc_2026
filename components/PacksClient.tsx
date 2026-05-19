@@ -144,17 +144,18 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
 
       if (packErr) throw packErr;
 
-      // Upsert collection rows
+      // Upsert collection rows — one query per sticker using maybeSingle()
+      // maybeSingle() returns null (not an error) when no row exists
       for (const raw of valid) {
         const ref = parseStickerRef(raw);
-        // Check if exists
+
         const { data: existing } = await supabase
           .from("collections")
           .select("id, quantity")
           .eq("user_id", userId)
           .eq("sticker_id", ref.id)
           .eq("variant", ref.variant)
-          .single();
+          .maybeSingle();
 
         if (existing) {
           await supabase
@@ -162,12 +163,14 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
             .update({ quantity: existing.quantity + 1 })
             .eq("id", existing.id);
         } else {
-          await supabase.from("collections").insert({
-            user_id: userId,
-            sticker_id: ref.id,
-            variant: ref.variant,
-            quantity: 1,
-          });
+          await supabase
+            .from("collections")
+            .insert({
+              user_id: userId,
+              sticker_id: ref.id,
+              variant: ref.variant,
+              quantity: 1,
+            });
         }
       }
 

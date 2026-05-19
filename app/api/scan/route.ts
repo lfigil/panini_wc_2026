@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
-      { error: "Scan feature not configured" },
+      { error: "ANTHROPIC_API_KEY is not set in your Coolify environment variables. Add it and redeploy." },
       { status: 503 }
     );
   }
