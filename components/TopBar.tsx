@@ -2,6 +2,8 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Settings } from "lucide-react";
 
 export default function TopBar({ displayName }: { displayName: string }) {
   const router = useRouter();
@@ -20,7 +22,10 @@ export default function TopBar({ displayName }: { displayName: string }) {
         <span className="font-semibold text-sm text-zinc-100">Panini WC2026</span>
       </div>
       <div className="flex items-center gap-3">
-        <span className="text-zinc-400 text-xs">{displayName}</span>
+        <span className="text-zinc-400 text-xs hidden sm:block">{displayName}</span>
+        <Link href="/settings" className="text-zinc-400 hover:text-zinc-200 transition-colors">
+          <Settings size={16} />
+        </Link>
         <button
           onClick={signOut}
           className="text-zinc-500 hover:text-zinc-200 text-xs transition-colors"
