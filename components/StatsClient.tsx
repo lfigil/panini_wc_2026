@@ -61,6 +61,35 @@ function Sparkline({ data, color = "#3b82f6", height = 40 }: { data: number[]; c
   );
 }
 
+// Renders basic markdown (bold, bullets, line breaks) without any library
+function renderMarkdown(text: string) {
+  return text.split("\n").map((line, i) => {
+    // Bullet points
+    const isBullet = /^[-*]\s/.test(line);
+    const content = isBullet ? line.replace(/^[-*]\s/, "") : line;
+
+    // Bold: **text** or __text__
+    const parts = content.split(/\*\*(.+?)\*\*|__(.+?)__/g);
+    const rendered = parts.map((part, j) => {
+      if (j % 3 === 1 || j % 3 === 2) {
+        return part ? <strong key={j} style={{ color: "#f4f4f5", fontWeight: 700 }}>{part}</strong> : null;
+      }
+      return part || null;
+    });
+
+    if (isBullet) {
+      return (
+        <div key={i} style={{ display: "flex", gap: "8px", marginBottom: "4px" }}>
+          <span style={{ color: "#a78bfa", flexShrink: 0, marginTop: "1px" }}>•</span>
+          <span>{rendered}</span>
+        </div>
+      );
+    }
+    if (!content.trim()) return <div key={i} style={{ height: "6px" }} />;
+    return <p key={i} style={{ margin: "0 0 6px 0" }}>{rendered}</p>;
+  });
+}
+
 export default function StatsClient({ packLogs, boxes, collection, completion, stickers }: Props) {
   const [aiQuestion, setAiQuestion] = useState("");
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
@@ -367,7 +396,7 @@ export default function StatsClient({ packLogs, boxes, collection, completion, s
               <Sparkles size={12} color="#a78bfa" />
               <span style={{ fontSize: "11px", fontWeight: 600, color: "#a78bfa" }}>Claude says</span>
             </div>
-            <p style={{ fontSize: "13px", color: "#f4f4f5", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{aiAnswer}</p>
+            <div style={{ fontSize: "13px", color: "#d4d4d8", lineHeight: 1.7 }}>{renderMarkdown(aiAnswer)}</div>
           </div>
         )}
       </div>
