@@ -1,2 +1,6 @@
 schema.sql
 seed.sql
+node_modules/
+.next/
+.env.local
+.env
