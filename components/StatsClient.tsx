@@ -19,7 +19,15 @@ interface Box {
 }
 
 interface CollectionRow {
+  sticker_id: string;
+  variant: string;
   quantity: number;
+}
+
+interface StickerMeta {
+  id: string;
+  is_foil: boolean;
+  team_code: string;
 }
 
 interface Completion {
@@ -33,9 +41,9 @@ interface Props {
   boxes: Box[];
   collection: CollectionRow[];
   completion: Completion;
+  stickers: StickerMeta[];
 }
 
-// Box type colors
 const BOX_COLORS: Record<string, string> = {
   regular: "#3b82f6",
   amazon_orange: "#f97316",
@@ -43,7 +51,19 @@ const BOX_COLORS: Record<string, string> = {
   tin: "#22c55e",
 };
 
-function StatCard({ label, value, sub, color = "#60a5fa" }: { label: string; value: string | number; sub?: string; color?: string }) {
+const VARIANT_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
+  standard: { bg: "#27272a", text: "#a1a1aa", dot: "#52525b" },
+  orange:   { bg: "#431407", text: "#fb923c", dot: "#f97316" },
+  blue:     { bg: "#172554", text: "#60a5fa", dot: "#3b82f6" },
+  red:      { bg: "#450a0a", text: "#f87171", dot: "#ef4444" },
+  green:    { bg: "#052e16", text: "#4ade80", dot: "#22c55e" },
+  purple:   { bg: "#2e1065", text: "#c084fc", dot: "#a855f7" },
+  black:    { bg: "#09090b", text: "#d4d4d8", dot: "#71717a" },
+};
+
+function StatCard({ label, value, sub, color = "#60a5fa" }: {
+  label: string; value: string | number; sub?: string; color?: string;
+}) {
   return (
     <div style={{ background: "#27272a", borderRadius: "12px", padding: "16px", textAlign: "center" }}>
       <p style={{ fontSize: "24px", fontWeight: 700, color }}>{value}</p>
@@ -53,24 +73,9 @@ function StatCard({ label, value, sub, color = "#60a5fa" }: { label: string; val
   );
 }
 
-// Simple inline bar chart row
-function BarRow({ label, value, max, color, suffix = "" }: { label: string; value: number; max: number; color: string; suffix?: string }) {
-  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
-  return (
-    <div style={{ marginBottom: "10px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-        <span style={{ fontSize: "12px", color: "#a1a1aa" }}>{label}</span>
-        <span style={{ fontSize: "12px", fontWeight: 600, color }}>{value}{suffix}</span>
-      </div>
-      <div style={{ width: "100%", height: "6px", background: "#3f3f46", borderRadius: "99px" }}>
-        <div style={{ width: `${pct}%`, height: "6px", background: color, borderRadius: "99px", transition: "width 0.3s" }} />
-      </div>
-    </div>
-  );
-}
-
-// Mini sparkline using SVG
-function Sparkline({ data, color = "#3b82f6", height = 40 }: { data: number[]; color?: string; height?: number }) {
+function Sparkline({ data, color = "#3b82f6", height = 40 }: {
+  data: number[]; color?: string; height?: number;
+}) {
   if (data.length < 2) return null;
   const max = Math.max(...data);
   const min = Math.min(...data);
@@ -81,7 +86,6 @@ function Sparkline({ data, color = "#3b82f6", height = 40 }: { data: number[]; c
     const y = height - ((v - min) / range) * (height - 4) - 2;
     return `${x},${y}`;
   }).join(" ");
-
   return (
     <svg viewBox={`0 0 ${w} ${height}`} style={{ width: "100%", height: `${height}px` }}>
       <polyline points={points} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -89,29 +93,89 @@ function Sparkline({ data, color = "#3b82f6", height = 40 }: { data: number[]; c
   );
 }
 
-export default function StatsClient({ packLogs, boxes, collection, completion }: Props) {
+export default function StatsClient({ packLogs, boxes, collection, completion, stickers }: Props) {
   const totalPacks = packLogs.length;
-  const totalStickers = totalPacks * 7;
+  const totalStickersLogged = totalPacks * 7;
   const totalDuplicates = collection.reduce((s, r) => s + Math.max(0, r.quantity - 1), 0);
   const totalNew = packLogs.reduce((s, p) => s + p.new_count, 0);
   const avgNewPerPack = totalPacks > 0 ? (totalNew / totalPacks).toFixed(1) : "0";
-  const dupeRate = totalStickers > 0 ? Math.round((totalDuplicates / totalStickers) * 100) : 0;
-
-  // Estimate packs to complete (based on current hit rate)
+  const dupeRate = totalStickersLogged > 0 ? Math.round((totalDuplicates / totalStickersLogged) * 100) : 0;
   const remaining = completion.total_stickers - completion.unique_collected;
   const hitRate = totalPacks > 0 ? totalNew / totalPacks : 3.5;
   const estimatedPacksLeft = hitRate > 0 ? Math.ceil(remaining / hitRate) : 0;
 
+  // Build foil lookup
+  const foilIds = useMemo(() => new Set(stickers.filter((s) => s.is_foil).map((s) => s.id)), [stickers]);
+  const totalFoils = foilIds.size;
+
+  // Foil collection stats
+  const foilStats = useMemo(() => {
+    const ownedFoils = collection.filter((r) => foilIds.has(r.sticker_id));
+    const uniqueFoilsOwned = new Set(ownedFoils.map((r) => r.sticker_id)).size;
+    const foilDupes = ownedFoils.reduce((s, r) => s + Math.max(0, r.quantity - 1), 0);
+
+    // Foils pulled from pack logs
+    let foilsPulledFromPacks = 0;
+    for (const log of packLogs) {
+      for (const sid of log.sticker_ids) {
+        const base = sid.split("-")[0];
+        if (foilIds.has(base)) foilsPulledFromPacks++;
+      }
+    }
+    const foilHitRate = totalStickersLogged > 0
+      ? ((foilsPulledFromPacks / totalStickersLogged) * 100).toFixed(1)
+      : "0";
+
+    return { uniqueFoilsOwned, foilDupes, foilsPulledFromPacks, foilHitRate };
+  }, [collection, foilIds, packLogs, totalStickersLogged]);
+
+  // Parallel pulls breakdown
+  const parallelStats = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const log of packLogs) {
+      for (const sid of log.sticker_ids) {
+        const parts = sid.split("-");
+        const variant = parts.length > 1 ? parts[parts.length - 1].toLowerCase() : "standard";
+        counts[variant] = (counts[variant] ?? 0) + 1;
+      }
+    }
+    return Object.entries(counts)
+      .map(([variant, count]) => ({ variant, count }))
+      .sort((a, b) => {
+        // Order: standard last, black first (rarest)
+        const order = ["black", "purple", "green", "red", "blue", "orange", "standard"];
+        return order.indexOf(a.variant) - order.indexOf(b.variant);
+      });
+  }, [packLogs]);
+
+  // Duplicate hotspots — top 5 most duped stickers
+  const dupeHotspots = useMemo(() => {
+    return collection
+      .filter((r) => r.quantity > 1)
+      .map((r) => ({ sticker_id: r.sticker_id, variant: r.variant, dupes: r.quantity - 1 }))
+      .sort((a, b) => b.dupes - a.dupes)
+      .slice(0, 5);
+  }, [collection]);
+
+  // Luckiest / unluckiest packs
+  const luckyPacks = useMemo(() => {
+    if (packLogs.length === 0) return { best: null, worst: null };
+    const best = packLogs.reduce((a, b) => a.new_count >= b.new_count ? a : b);
+    const worst = packLogs.reduce((a, b) => a.new_count <= b.new_count ? a : b);
+    return { best, worst };
+  }, [packLogs]);
+
   // Per box type stats
   const boxTypeStats = useMemo(() => {
-    const stats: Record<string, { packs: number; newTotal: number; dupeTotal: number }> = {};
+    const stats: Record<string, { packs: number; newTotal: number; dupeTotal: number; foilTotal: number }> = {};
     for (const log of packLogs) {
       const box = boxes.find((b) => b.id === log.box_id);
       const bt = box?.box_type ?? "loose";
-      if (!stats[bt]) stats[bt] = { packs: 0, newTotal: 0, dupeTotal: 0 };
+      if (!stats[bt]) stats[bt] = { packs: 0, newTotal: 0, dupeTotal: 0, foilTotal: 0 };
       stats[bt].packs++;
       stats[bt].newTotal += log.new_count;
       stats[bt].dupeTotal += (7 - log.new_count);
+      stats[bt].foilTotal += log.sticker_ids.filter((sid) => foilIds.has(sid.split("-")[0])).length;
     }
     return Object.entries(stats).map(([type, s]) => ({
       type,
@@ -119,40 +183,21 @@ export default function StatsClient({ packLogs, boxes, collection, completion }:
       avgNew: s.packs > 0 ? (s.newTotal / s.packs).toFixed(1) : "0",
       avgDupe: s.packs > 0 ? (s.dupeTotal / s.packs).toFixed(1) : "0",
       hitRate: s.packs > 0 ? Math.round((s.newTotal / (s.packs * 7)) * 100) : 0,
+      foilRate: s.packs > 0 ? ((s.foilTotal / (s.packs * 7)) * 100).toFixed(1) : "0",
     })).sort((a, b) => b.packs - a.packs);
-  }, [packLogs]);
+  }, [packLogs, boxes, foilIds]);
 
-  // Completion curve over time — cumulative unique stickers per day
+  // Completion curve
   const completionCurve = useMemo(() => {
     if (packLogs.length === 0) return [];
     const seen = new Set<string>();
     return packLogs.map((log) => {
-      log.sticker_ids.forEach((sid) => {
-        const base = sid.split("-")[0];
-        seen.add(base);
-      });
+      log.sticker_ids.forEach((sid) => seen.add(sid.split("-")[0]));
       return seen.size;
     });
   }, [packLogs]);
 
-  // New vs dupe per pack (last 20)
-  const recentPacks = packLogs.slice(-20);
-  const newPerPack = recentPacks.map((p) => p.new_count);
-  const dupePerPack = recentPacks.map((p) => 7 - p.new_count);
-
-  // Packs opened by day of week
-  const byDayOfWeek = useMemo(() => {
-    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const counts = Array(7).fill(0);
-    packLogs.forEach((log) => {
-      counts[new Date(log.opened_at).getDay()]++;
-    });
-    return days.map((d, i) => ({ day: d, count: counts[i] }));
-  }, [packLogs]);
-
-  const maxDayCount = Math.max(...byDayOfWeek.map((d) => d.count), 1);
-
-  // Boxes progress
+  // Box progress
   const boxProgress = useMemo(() => {
     return boxes.map((box) => {
       const opened = packLogs.filter((l) => l.box_id === box.id).length;
@@ -161,8 +206,11 @@ export default function StatsClient({ packLogs, boxes, collection, completion }:
     }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [boxes, packLogs]);
 
-  const sectionStyle = { background: "#27272a", borderRadius: "16px", padding: "16px", marginBottom: "12px" };
-  const headingStyle = { fontSize: "13px", fontWeight: 600, color: "#f4f4f5", marginBottom: "12px" };
+  const recentPacks = packLogs.slice(-20);
+  const newPerPack = recentPacks.map((p) => p.new_count);
+
+  const ss = { background: "#27272a", borderRadius: "16px", padding: "16px", marginBottom: "12px" };
+  const hs = { fontSize: "13px", fontWeight: 600 as const, color: "#f4f4f5", marginBottom: "12px" };
 
   if (totalPacks === 0) {
     return (
@@ -177,7 +225,7 @@ export default function StatsClient({ packLogs, boxes, collection, completion }:
   return (
     <div style={{ padding: "12px 12px 24px", maxWidth: "480px", margin: "0 auto" }}>
 
-      {/* Top stat grid */}
+      {/* Top stat cards */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "12px" }}>
         <StatCard label="Packs opened" value={totalPacks} color="#60a5fa" />
         <StatCard label="Unique collected" value={completion.unique_collected} sub={`of ${completion.total_stickers}`} color="#4ade80" />
@@ -186,8 +234,8 @@ export default function StatsClient({ packLogs, boxes, collection, completion }:
       </div>
 
       {/* Completion estimate */}
-      <div style={{ ...sectionStyle, background: "#1e3a5f", border: "1px solid #1d4ed8" }}>
-        <p style={{ ...headingStyle, color: "#93c5fd" }}>🎯 Completion estimate</p>
+      <div style={{ ...ss, background: "#1e3a5f", border: "1px solid #1d4ed8", marginBottom: "12px" }}>
+        <p style={{ ...hs, color: "#93c5fd" }}>🎯 Completion estimate</p>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <p style={{ fontSize: "28px", fontWeight: 700, color: "#60a5fa" }}>{estimatedPacksLeft}</p>
@@ -205,8 +253,8 @@ export default function StatsClient({ packLogs, boxes, collection, completion }:
 
       {/* Completion curve */}
       {completionCurve.length > 1 && (
-        <div style={sectionStyle}>
-          <p style={headingStyle}>📈 Unique stickers over time</p>
+        <div style={ss}>
+          <p style={hs}>📈 Collection growth</p>
           <Sparkline data={completionCurve} color="#4ade80" height={50} />
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px" }}>
             <span style={{ fontSize: "10px", color: "#52525b" }}>Pack 1</span>
@@ -215,24 +263,141 @@ export default function StatsClient({ packLogs, boxes, collection, completion }:
         </div>
       )}
 
-      {/* New vs dupe trend (last 20 packs) */}
+      {/* New per pack trend */}
       {recentPacks.length > 1 && (
-        <div style={sectionStyle}>
-          <p style={headingStyle}>🆕 New stickers per pack (last {recentPacks.length})</p>
+        <div style={ss}>
+          <p style={hs}>🆕 New stickers per pack (last {recentPacks.length})</p>
           <Sparkline data={newPerPack} color="#60a5fa" height={44} />
-          <div style={{ display: "flex", gap: "16px", marginTop: "8px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <div style={{ width: "10px", height: "3px", background: "#60a5fa", borderRadius: "99px" }} />
-              <span style={{ fontSize: "11px", color: "#71717a" }}>New (avg {avgNewPerPack})</span>
+          <p style={{ fontSize: "11px", color: "#52525b", marginTop: "6px" }}>avg {avgNewPerPack} new per pack</p>
+        </div>
+      )}
+
+      {/* ✨ FOIL STATS */}
+      <div style={ss}>
+        <p style={hs}>✨ Foil collection</p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "12px" }}>
+          <div style={{ background: "#18181b", borderRadius: "10px", padding: "10px", textAlign: "center" }}>
+            <p style={{ fontSize: "20px", fontWeight: 700, color: "#fbbf24" }}>{foilStats.uniqueFoilsOwned}</p>
+            <p style={{ fontSize: "10px", color: "#52525b", marginTop: "2px" }}>of {totalFoils} foils</p>
+          </div>
+          <div style={{ background: "#18181b", borderRadius: "10px", padding: "10px", textAlign: "center" }}>
+            <p style={{ fontSize: "20px", fontWeight: 700, color: "#f59e0b" }}>{foilStats.foilHitRate}%</p>
+            <p style={{ fontSize: "10px", color: "#52525b", marginTop: "2px" }}>hit rate</p>
+          </div>
+          <div style={{ background: "#18181b", borderRadius: "10px", padding: "10px", textAlign: "center" }}>
+            <p style={{ fontSize: "20px", fontWeight: 700, color: "#d97706" }}>{foilStats.foilDupes}</p>
+            <p style={{ fontSize: "10px", color: "#52525b", marginTop: "2px" }}>foil dupes</p>
+          </div>
+        </div>
+        {/* Foil progress bar */}
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+          <span style={{ fontSize: "11px", color: "#a1a1aa" }}>Foil completion</span>
+          <span style={{ fontSize: "11px", fontWeight: 600, color: "#fbbf24" }}>
+            {totalFoils > 0 ? Math.round((foilStats.uniqueFoilsOwned / totalFoils) * 100) : 0}%
+          </span>
+        </div>
+        <div style={{ width: "100%", height: "6px", background: "#3f3f46", borderRadius: "99px" }}>
+          <div style={{
+            width: `${totalFoils > 0 ? (foilStats.uniqueFoilsOwned / totalFoils) * 100 : 0}%`,
+            height: "6px",
+            background: "linear-gradient(90deg, #d97706, #fbbf24)",
+            borderRadius: "99px",
+          }} />
+        </div>
+      </div>
+
+      {/* 🎨 PARALLEL PULLS */}
+      {parallelStats.length > 0 && (
+        <div style={ss}>
+          <p style={hs}>🎨 Parallel pulls</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {parallelStats.map(({ variant, count }) => {
+              const style = VARIANT_COLORS[variant] ?? VARIANT_COLORS.standard;
+              const maxCount = Math.max(...parallelStats.map((p) => p.count));
+              const pct = maxCount > 0 ? (count / maxCount) * 100 : 0;
+              const label = variant.charAt(0).toUpperCase() + variant.slice(1);
+              return (
+                <div key={variant} style={{ background: style.bg, borderRadius: "10px", padding: "10px 12px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <div style={{ width: "8px", height: "8px", borderRadius: "99px", background: style.dot }} />
+                      <span style={{ fontSize: "13px", fontWeight: 500, color: style.text }}>{label}</span>
+                    </div>
+                    <span style={{ fontSize: "13px", fontWeight: 700, color: style.text }}>{count}</span>
+                  </div>
+                  <div style={{ width: "100%", height: "3px", background: "#18181b", borderRadius: "99px" }}>
+                    <div style={{ width: `${pct}%`, height: "3px", background: style.dot, borderRadius: "99px" }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {parallelStats.find((p) => p.variant === "black") ? (
+            <p style={{ fontSize: "10px", color: "#52525b", marginTop: "8px", textAlign: "center" }}>🖤 Black parallel pulled — extremely rare!</p>
+          ) : (
+            <p style={{ fontSize: "10px", color: "#52525b", marginTop: "8px", textAlign: "center" }}>No black parallel yet — keep opening!</p>
+          )}
+        </div>
+      )}
+
+      {/* 🏆 LUCKY / UNLUCKY PACKS */}
+      {luckyPacks.best && luckyPacks.worst && (
+        <div style={ss}>
+          <p style={hs}>🎲 Pack highlights</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+            <div style={{ background: "#052e16", border: "1px solid #166534", borderRadius: "12px", padding: "12px", textAlign: "center" }}>
+              <p style={{ fontSize: "11px", color: "#4ade80", marginBottom: "6px", fontWeight: 600 }}>🏆 Best pack</p>
+              <p style={{ fontSize: "28px", fontWeight: 700, color: "#4ade80" }}>{luckyPacks.best.new_count}</p>
+              <p style={{ fontSize: "10px", color: "#16a34a" }}>new stickers</p>
+              <p style={{ fontSize: "10px", color: "#15803d", marginTop: "4px" }}>
+                {new Date(luckyPacks.best.opened_at).toLocaleDateString()}
+              </p>
+            </div>
+            <div style={{ background: "#450a0a", border: "1px solid #991b1b", borderRadius: "12px", padding: "12px", textAlign: "center" }}>
+              <p style={{ fontSize: "11px", color: "#f87171", marginBottom: "6px", fontWeight: 600 }}>💀 Worst pack</p>
+              <p style={{ fontSize: "28px", fontWeight: 700, color: "#f87171" }}>{luckyPacks.worst.new_count}</p>
+              <p style={{ fontSize: "10px", color: "#ef4444" }}>new stickers</p>
+              <p style={{ fontSize: "10px", color: "#dc2626", marginTop: "4px" }}>
+                {new Date(luckyPacks.worst.opened_at).toLocaleDateString()}
+              </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* By box type */}
+      {/* 🃏 DUPLICATE HOTSPOTS */}
+      {dupeHotspots.length > 0 && (
+        <div style={ss}>
+          <p style={hs}>🃏 Duplicate hotspots</p>
+          <p style={{ fontSize: "11px", color: "#52525b", marginBottom: "10px" }}>Your most-duped stickers — prime trade candidates</p>
+          {dupeHotspots.map(({ sticker_id, variant, dupes }, i) => {
+            const variantStyle = VARIANT_COLORS[variant] ?? VARIANT_COLORS.standard;
+            const medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"];
+            return (
+              <div key={`${sticker_id}-${variant}`} style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "8px 10px", background: "#18181b", borderRadius: "8px", marginBottom: "6px",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span style={{ fontSize: "16px" }}>{medals[i]}</span>
+                  <span style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 700, color: "#f4f4f5" }}>
+                    {sticker_id}{variant !== "standard" ? `-${variant.toUpperCase()}` : ""}
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <div style={{ width: "8px", height: "8px", borderRadius: "99px", background: variantStyle.dot }} />
+                  <span style={{ fontSize: "13px", fontWeight: 700, color: "#f87171" }}>+{dupes}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 📦 Box type performance */}
       {boxTypeStats.length > 0 && (
-        <div style={sectionStyle}>
-          <p style={headingStyle}>📦 Performance by box type</p>
+        <div style={ss}>
+          <p style={hs}>📦 Performance by box type</p>
           {boxTypeStats.map((bt) => {
             const label = bt.type === "loose" ? "Loose packs" : BOX_TYPE_LABELS[bt.type as BoxType] ?? bt.type;
             const color = BOX_COLORS[bt.type] ?? "#71717a";
@@ -245,19 +410,18 @@ export default function StatsClient({ packLogs, boxes, collection, completion }:
                   </div>
                   <span style={{ fontSize: "11px", color: "#71717a" }}>{bt.packs} packs</span>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
-                  <div style={{ background: "#18181b", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
-                    <p style={{ fontSize: "16px", fontWeight: 700, color }}>{bt.avgNew}</p>
-                    <p style={{ fontSize: "10px", color: "#52525b" }}>avg new</p>
-                  </div>
-                  <div style={{ background: "#18181b", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
-                    <p style={{ fontSize: "16px", fontWeight: 700, color: "#f87171" }}>{bt.avgDupe}</p>
-                    <p style={{ fontSize: "10px", color: "#52525b" }}>avg dupe</p>
-                  </div>
-                  <div style={{ background: "#18181b", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
-                    <p style={{ fontSize: "16px", fontWeight: 700, color: "#4ade80" }}>{bt.hitRate}%</p>
-                    <p style={{ fontSize: "10px", color: "#52525b" }}>hit rate</p>
-                  </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "6px" }}>
+                  {[
+                    { v: bt.avgNew, l: "avg new", c: color },
+                    { v: bt.avgDupe, l: "avg dupe", c: "#f87171" },
+                    { v: `${bt.hitRate}%`, l: "hit rate", c: "#4ade80" },
+                    { v: `${bt.foilRate}%`, l: "foil rate", c: "#fbbf24" },
+                  ].map(({ v, l, c }) => (
+                    <div key={l} style={{ background: "#18181b", borderRadius: "8px", padding: "8px 4px", textAlign: "center" }}>
+                      <p style={{ fontSize: "14px", fontWeight: 700, color: c }}>{v}</p>
+                      <p style={{ fontSize: "9px", color: "#52525b", marginTop: "2px" }}>{l}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             );
@@ -265,10 +429,10 @@ export default function StatsClient({ packLogs, boxes, collection, completion }:
         </div>
       )}
 
-      {/* Box progress */}
+      {/* Boxes progress */}
       {boxProgress.length > 0 && (
-        <div style={sectionStyle}>
-          <p style={headingStyle}>🗃️ Boxes</p>
+        <div style={ss}>
+          <p style={hs}>🗃️ Boxes</p>
           {boxProgress.map((box) => {
             const color = BOX_COLORS[box.box_type] ?? "#71717a";
             return (
@@ -289,22 +453,6 @@ export default function StatsClient({ packLogs, boxes, collection, completion }:
           })}
         </div>
       )}
-
-      {/* Packs by day of week */}
-      <div style={sectionStyle}>
-        <p style={headingStyle}>📅 Packs by day of week</p>
-        <div style={{ display: "flex", gap: "4px", alignItems: "flex-end", height: "60px" }}>
-          {byDayOfWeek.map(({ day, count }) => {
-            const h = maxDayCount > 0 ? Math.max(4, Math.round((count / maxDayCount) * 52)) : 4;
-            return (
-              <div key={day} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
-                <div style={{ width: "100%", height: `${h}px`, background: count > 0 ? "#3b82f6" : "#3f3f46", borderRadius: "4px 4px 0 0", transition: "height 0.3s" }} />
-                <span style={{ fontSize: "9px", color: "#52525b" }}>{day}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
 
     </div>
   );
