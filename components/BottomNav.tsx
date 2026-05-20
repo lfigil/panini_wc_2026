@@ -2,20 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, BookOpen, Package, ArrowLeftRight } from "lucide-react";
+import { LayoutDashboard, BookOpen, Package, ArrowLeftRight, BarChart2 } from "lucide-react";
 
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/album", label: "Album", icon: BookOpen },
   { href: "/packs", label: "Packs", icon: Package },
   { href: "/trades", label: "Trades", icon: ArrowLeftRight },
+  { href: "/stats", label: "Stats", icon: BarChart2 },
 ];
 
 export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[#27272a] border-t border-zinc-700/50 safe-area-pb">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 safe-area-pb">
       <div className="flex">
         {nav.map(({ href, label, icon: Icon }) => {
           const active = pathname.startsWith(href);
@@ -24,7 +25,9 @@ export default function BottomNav() {
               key={href}
               href={href}
               className={`flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
-                active ? "text-blue-400" : "text-zinc-500 hover:text-zinc-300"
+                active
+                  ? "text-blue-600"
+                  : "text-gray-400 hover:text-gray-600"
               }`}
             >
               <Icon size={20} strokeWidth={active ? 2.5 : 1.8} />
