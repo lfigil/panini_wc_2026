@@ -206,3 +206,4 @@ export default function AlbumGrid({ teams, stickers, collection }: Props) {
     </div>
   );
 }
+
