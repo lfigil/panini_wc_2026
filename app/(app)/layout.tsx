@@ -21,7 +21,7 @@ export default async function AppLayout({
     .single();
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
+    <div className="flex flex-col min-h-screen bg-[#18181b]">
       <TopBar displayName={profile?.display_name ?? user.email ?? "Collector"} />
       <main className="flex-1 pb-20 pt-14">
         {children}

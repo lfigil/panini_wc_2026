@@ -44,29 +44,23 @@ export default function AlbumGrid({ teams, stickers, collection }: Props) {
     );
   }, [sortedTeams, search]);
 
-  // Scrollspy — update active team as user scrolls
   useEffect(() => {
     const container = scrollRef.current;
     if (!container) return;
-
     function onScroll() {
       const containerTop = container!.getBoundingClientRect().top;
       let current = sortedTeams[0]?.code ?? "";
       for (const team of sortedTeams) {
         const el = document.getElementById(`team-${team.code}`);
         if (!el) continue;
-        if (el.getBoundingClientRect().top - containerTop <= 48) {
-          current = team.code;
-        }
+        if (el.getBoundingClientRect().top - containerTop <= 48) current = team.code;
       }
       setActiveTeam(current);
     }
-
     container.addEventListener("scroll", onScroll, { passive: true });
     return () => container.removeEventListener("scroll", onScroll);
   }, [sortedTeams]);
 
-  // Keep active sidebar button visible
   useEffect(() => {
     const btn = sidebarRef.current?.querySelector<HTMLElement>(`[data-team="${activeTeam}"]`);
     btn?.scrollIntoView({ block: "nearest" });
@@ -80,8 +74,8 @@ export default function AlbumGrid({ teams, stickers, collection }: Props) {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 7.5rem)" }}>
 
-      {/* Search / jump */}
-      <div style={{ background: "white", borderBottom: "1px solid #f3f4f6", padding: "8px 12px" }}>
+      {/* Search */}
+      <div style={{ background: "#27272a", borderBottom: "1px solid #3f3f46", padding: "8px 12px" }}>
         <input
           type="text"
           placeholder="Jump to team…"
@@ -89,8 +83,8 @@ export default function AlbumGrid({ teams, stickers, collection }: Props) {
           onChange={(e) => setSearch(e.target.value)}
           style={{
             width: "100%", padding: "8px 12px", fontSize: "14px",
-            borderRadius: "8px", border: "none", background: "#f3f4f6",
-            color: "#111827", outline: "none", boxSizing: "border-box",
+            borderRadius: "8px", border: "none", background: "#3f3f46",
+            color: "#fafafa", outline: "none", boxSizing: "border-box",
           }}
         />
       </div>
@@ -100,7 +94,7 @@ export default function AlbumGrid({ teams, stickers, collection }: Props) {
         {/* Sidebar — jump nav */}
         <div
           ref={sidebarRef}
-          style={{ width: "64px", flexShrink: 0, overflowY: "auto", background: "white", borderRight: "1px solid #f3f4f6" }}
+          style={{ width: "64px", flexShrink: 0, overflowY: "auto", background: "#27272a", borderRight: "1px solid #3f3f46" }}
         >
           {filteredTeams.map((team) => {
             const ts = stickers.filter((s) => s.team_code === team.code);
@@ -116,17 +110,19 @@ export default function AlbumGrid({ teams, stickers, collection }: Props) {
                 onClick={() => scrollToTeam(team.code)}
                 style={{
                   width: "100%", padding: "10px 4px", textAlign: "center",
-                  borderBottom: "1px solid #f9fafb",
-                  borderLeft: active ? "3px solid #2563eb" : "3px solid transparent",
-                  background: active ? "#eff6ff" : isFWC ? "#fefce8" : "white",
+                  borderBottom: "1px solid #3f3f46",
+                  borderLeft: active ? "3px solid #60a5fa" : "3px solid transparent",
+                  background: active ? "#1e3a5f" : isFWC ? "#2d2a1a" : "transparent",
                   cursor: "pointer",
                 }}
               >
-                <p style={{ fontSize: "11px", fontWeight: 700, lineHeight: 1,
-                  color: active ? "#1d4ed8" : isFWC ? "#92400e" : "#374151" }}>
+                <p style={{
+                  fontSize: "11px", fontWeight: 700, lineHeight: 1,
+                  color: active ? "#93c5fd" : isFWC ? "#fcd34d" : "#a1a1aa",
+                }}>
                   {team.code}
                 </p>
-                <p style={{ fontSize: "10px", marginTop: "2px", color: isComplete ? "#16a34a" : "#9ca3af" }}>
+                <p style={{ fontSize: "10px", marginTop: "2px", color: isComplete ? "#4ade80" : "#52525b" }}>
                   {tc}/{ts.length}
                 </p>
               </button>
@@ -135,7 +131,7 @@ export default function AlbumGrid({ teams, stickers, collection }: Props) {
         </div>
 
         {/* All teams — continuous vertical scroll */}
-        <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "0 10px 32px" }}>
+        <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "0 10px 32px", background: "#18181b" }}>
           {sortedTeams.map((team) => {
             const teamStickers = stickers
               .filter((s) => s.team_code === team.code)
@@ -148,29 +144,26 @@ export default function AlbumGrid({ teams, stickers, collection }: Props) {
             return (
               <div key={team.code} id={`team-${team.code}`} style={{ paddingTop: "14px", marginBottom: "8px" }}>
 
-                {/* Team header */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "5px" }}>
                   <div>
-                    <p style={{ fontWeight: 600, fontSize: "14px", color: "#111827" }}>{team.name}</p>
-                    <p style={{ fontSize: "11px", color: "#6b7280", marginTop: "1px" }}>
+                    <p style={{ fontWeight: 600, fontSize: "14px", color: "#fafafa" }}>{team.name}</p>
+                    <p style={{ fontSize: "11px", color: "#71717a", marginTop: "1px" }}>
                       {teamCollected}/{teamStickers.length} collected{team.group ? ` · Group ${team.group}` : ""}
                     </p>
                   </div>
-                  <span style={{ fontSize: "15px", fontWeight: 700, color: pct === 100 ? "#16a34a" : "#2563eb" }}>
+                  <span style={{ fontSize: "15px", fontWeight: 700, color: pct === 100 ? "#4ade80" : "#60a5fa" }}>
                     {pct}%
                   </span>
                 </div>
 
-                {/* Progress bar */}
-                <div style={{ width: "100%", height: "4px", background: "#e5e7eb", borderRadius: "99px", marginBottom: "8px" }}>
+                <div style={{ width: "100%", height: "3px", background: "#3f3f46", borderRadius: "99px", marginBottom: "8px" }}>
                   <div style={{
-                    height: "4px", borderRadius: "99px",
+                    height: "3px", borderRadius: "99px",
                     width: `${pct}%`,
-                    background: pct === 100 ? "#22c55e" : "#3b82f6",
+                    background: pct === 100 ? "#4ade80" : "#3b82f6",
                   }} />
                 </div>
 
-                {/* Sticker grid */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "6px" }}>
                   {teamStickers.map((sticker) => {
                     const ownedRows = owned.get(sticker.id) ?? [];
@@ -185,14 +178,14 @@ export default function AlbumGrid({ teams, stickers, collection }: Props) {
                           position: "relative",
                           borderRadius: "10px",
                           border: sticker.is_foil
-                            ? isOwned ? "1.5px solid #f59e0b" : "1.5px solid #fde68a"
-                            : isOwned ? "1.5px solid #bfdbfe" : "1.5px solid #e5e7eb",
+                            ? isOwned ? "1.5px solid #d97706" : "1.5px solid #78350f"
+                            : isOwned ? "1.5px solid #1d4ed8" : "1.5px solid #27272a",
                           background: sticker.is_foil
                             ? isOwned
-                              ? "linear-gradient(135deg, #fef9c3, #fde68a, #fef3c7)"
-                              : "linear-gradient(135deg, #fefce8, #fef9c3)"
-                            : isOwned ? "#eff6ff" : "white",
-                          opacity: isOwned ? 1 : 0.45,
+                              ? "linear-gradient(135deg, #451a03, #78350f, #451a03)"
+                              : "linear-gradient(135deg, #1c1208, #2d1f08)"
+                            : isOwned ? "#1e3a5f" : "#27272a",
+                          opacity: isOwned ? 1 : 0.5,
                           padding: "10px 4px 8px",
                           textAlign: "center",
                           minHeight: "60px",
@@ -206,7 +199,7 @@ export default function AlbumGrid({ teams, stickers, collection }: Props) {
                         {hasDupe && (
                           <div style={{
                             position: "absolute", top: "-5px", right: "-5px",
-                            background: "#f59e0b", color: "white",
+                            background: "#d97706", color: "white",
                             width: "17px", height: "17px", borderRadius: "99px",
                             fontSize: "9px", fontWeight: 700,
                             display: "flex", alignItems: "center", justifyContent: "center",
@@ -217,7 +210,10 @@ export default function AlbumGrid({ teams, stickers, collection }: Props) {
 
                         <p style={{
                           fontFamily: "monospace", fontWeight: 700, fontSize: "12px",
-                          color: isOwned ? "#1d4ed8" : "#9ca3af", lineHeight: 1,
+                          color: sticker.is_foil
+                            ? isOwned ? "#fcd34d" : "#78350f"
+                            : isOwned ? "#93c5fd" : "#52525b",
+                          lineHeight: 1,
                         }}>
                           {sticker.id}
                         </p>
@@ -225,7 +221,7 @@ export default function AlbumGrid({ teams, stickers, collection }: Props) {
                         {isOwned && (
                           <div style={{
                             width: "5px", height: "5px", borderRadius: "99px",
-                            background: hasDupe ? "#f59e0b" : "#3b82f6",
+                            background: hasDupe ? "#d97706" : "#3b82f6",
                           }} />
                         )}
                       </div>
