@@ -2,7 +2,7 @@ export type BoxType = "regular" | "amazon_orange" | "panini_exclusive" | "tin";
 export type InputMethod = "manual" | "bulk" | "scan";
 export type TradeStatus = "pending" | "accepted" | "declined" | "completed";
 export type StickerType = "standard" | "special" | "coca_cola";
-export type Variant = "standard" | "orange" | "blue" | "other";
+export type Variant = "standard" | "orange" | "blue" | "red" | "green" | "purple" | "black" | "other";
 
 export interface Team {
   code: string;
