@@ -19,6 +19,7 @@ export default async function AlbumPage() {
 
   return (
     <AlbumGrid
+      userId={user.id}
       teams={teams ?? []}
       stickers={stickers ?? []}
       collection={collection ?? []}
