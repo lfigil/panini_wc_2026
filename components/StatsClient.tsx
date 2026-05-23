@@ -62,6 +62,42 @@ function Sparkline({ data, color = "#3b82f6", height = 40 }: { data: number[]; c
 }
 
 // Renders markdown into React elements — handles bold, italic, headings, bullets, numbered lists, inline code
+function renderTable(rows: string[]): React.ReactNode {
+  // Parse markdown table rows like | col1 | col2 | col3 |
+  const parsed = rows.map(r =>
+    r.split("|").map(c => c.trim()).filter((_, i, a) => i > 0 && i < a.length - 1)
+  );
+  // Row index 1 is usually the separator (---|---) — skip it
+  const header = parsed[0] ?? [];
+  const body = parsed.filter((_, i) => i !== 1);
+  return (
+    <div style={{ overflowX: "auto", marginBottom: "8px" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+        <thead>
+          <tr>
+            {header.map((cell, i) => (
+              <th key={i} style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid #3f3f46", color: "#a78bfa", fontWeight: 600, whiteSpace: "nowrap" }}>
+                {cell}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {body.map((row, ri) => (
+            <tr key={ri} style={{ borderBottom: "1px solid #27272a" }}>
+              {row.map((cell, ci) => (
+                <td key={ci} style={{ padding: "5px 8px", color: ci === 0 ? "#f4f4f5" : "#a1a1aa", fontWeight: ci === 0 ? 500 : 400 }}>
+                  {renderInline(cell)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function renderInline(text: string, key?: number) {
   // Split on **bold**, *italic*, `code`
   const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g);
@@ -86,6 +122,17 @@ function renderMarkdown(text: string) {
 
     // Blank line
     if (!line.trim()) { elements.push(<div key={i} style={{ height: "6px" }} />); i++; continue; }
+
+    // Table — collect consecutive | rows
+    if (line.trim().startsWith("|")) {
+      const tableRows: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith("|")) {
+        tableRows.push(lines[i]);
+        i++;
+      }
+      elements.push(<div key={`table-${i}`}>{renderTable(tableRows)}</div>);
+      continue;
+    }
 
     // Headings: ### ## #
     const headingMatch = line.match(/^(#{1,3})\s+(.+)/);
