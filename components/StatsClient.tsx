@@ -61,33 +61,77 @@ function Sparkline({ data, color = "#3b82f6", height = 40 }: { data: number[]; c
   );
 }
 
-// Renders basic markdown (bold, bullets, line breaks) without any library
+// Renders markdown into React elements — handles bold, italic, headings, bullets, numbered lists, inline code
+function renderInline(text: string, key?: number) {
+  // Split on **bold**, *italic*, `code`
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**"))
+      return <strong key={i} style={{ color: "#f4f4f5", fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
+    if (part.startsWith("*") && part.endsWith("*"))
+      return <em key={i} style={{ color: "#d4d4d8", fontStyle: "italic" }}>{part.slice(1, -1)}</em>;
+    if (part.startsWith("`") && part.endsWith("`"))
+      return <code key={i} style={{ background: "#3f3f46", borderRadius: "4px", padding: "1px 5px", fontSize: "12px", fontFamily: "monospace", color: "#a78bfa" }}>{part.slice(1, -1)}</code>;
+    return part || null;
+  });
+}
+
 function renderMarkdown(text: string) {
-  return text.split("\n").map((line, i) => {
-    // Bullet points
-    const isBullet = /^[-*]\s/.test(line);
-    const content = isBullet ? line.replace(/^[-*]\s/, "") : line;
+  const lines = text.split("\n");
+  const elements: React.ReactNode[] = [];
+  let i = 0;
 
-    // Bold: **text** or __text__
-    const parts = content.split(/\*\*(.+?)\*\*|__(.+?)__/g);
-    const rendered = parts.map((part, j) => {
-      if (j % 3 === 1 || j % 3 === 2) {
-        return part ? <strong key={j} style={{ color: "#f4f4f5", fontWeight: 700 }}>{part}</strong> : null;
-      }
-      return part || null;
-    });
+  while (i < lines.length) {
+    const line = lines[i];
 
-    if (isBullet) {
-      return (
+    // Blank line
+    if (!line.trim()) { elements.push(<div key={i} style={{ height: "6px" }} />); i++; continue; }
+
+    // Headings: ### ## #
+    const headingMatch = line.match(/^(#{1,3})\s+(.+)/);
+    if (headingMatch) {
+      const level = headingMatch[1].length;
+      const sizes = ["16px", "14px", "13px"];
+      elements.push(
+        <p key={i} style={{ fontSize: sizes[level - 1], fontWeight: 700, color: "#f4f4f5", margin: "8px 0 4px" }}>
+          {renderInline(headingMatch[2])}
+        </p>
+      );
+      i++; continue;
+    }
+
+    // Numbered list: 1. 2. 3.
+    const numMatch = line.match(/^(\d+)\.[\s](.+)/);
+    if (numMatch) {
+      elements.push(
         <div key={i} style={{ display: "flex", gap: "8px", marginBottom: "4px" }}>
-          <span style={{ color: "#a78bfa", flexShrink: 0, marginTop: "1px" }}>•</span>
-          <span>{rendered}</span>
+          <span style={{ color: "#a78bfa", flexShrink: 0, minWidth: "16px", fontWeight: 600 }}>{numMatch[1]}.</span>
+          <span>{renderInline(numMatch[2])}</span>
         </div>
       );
+      i++; continue;
     }
-    if (!content.trim()) return <div key={i} style={{ height: "6px" }} />;
-    return <p key={i} style={{ margin: "0 0 6px 0" }}>{rendered}</p>;
-  });
+
+    // Bullet list: - * •
+    const bulletMatch = line.match(/^[-*•]\s(.+)/);
+    if (bulletMatch) {
+      elements.push(
+        <div key={i} style={{ display: "flex", gap: "8px", marginBottom: "4px" }}>
+          <span style={{ color: "#a78bfa", flexShrink: 0, marginTop: "1px" }}>•</span>
+          <span>{renderInline(bulletMatch[1])}</span>
+        </div>
+      );
+      i++; continue;
+    }
+
+    // Normal paragraph
+    elements.push(
+      <p key={i} style={{ margin: "0 0 6px 0" }}>{renderInline(line)}</p>
+    );
+    i++;
+  }
+
+  return elements;
 }
 
 export default function StatsClient({ packLogs, boxes, collection, completion, stickers }: Props) {
@@ -357,7 +401,7 @@ export default function StatsClient({ packLogs, boxes, collection, completion, s
             onKeyDown={(e) => e.key === "Enter" && askAI(aiQuestion)}
             placeholder="Ask anything about your collection…"
             style={{
-              flex: 1, padding: "9px 12px", fontSize: "13px",
+              flex: 1, padding: "9px 12px", fontSize: "16px",
               borderRadius: "10px", border: "1px solid #3f3f46",
               background: "#18181b", color: "#f4f4f5",
               outline: "none",

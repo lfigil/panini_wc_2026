@@ -229,7 +229,7 @@ export default function AlbumGrid({ userId, teams, stickers, collection: initial
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{
-              width: "100%", padding: "8px 12px", fontSize: "14px",
+              width: "100%", padding: "8px 12px", fontSize: "16px",
               borderRadius: "8px", border: "none", background: "#3f3f46",
               color: "#fafafa", outline: "none", boxSizing: "border-box",
             }}

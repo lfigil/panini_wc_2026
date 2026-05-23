@@ -40,7 +40,7 @@ export default function SettingsClient({ email, displayName, stats }: Props) {
   }
 
   const ss = { background: "#27272a", borderRadius: "16px", padding: "16px", marginBottom: "12px" };
-  const inputCls = "w-full text-sm px-3 py-2.5 rounded-lg bg-zinc-700 border border-zinc-600 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono tracking-widest";
+  const inputCls = "w-full text-base px-3 py-2.5 rounded-lg bg-zinc-700 border border-zinc-600 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono tracking-widest";
 
   return (
     <div style={{ padding: "16px", maxWidth: "480px", margin: "0 auto" }}>
