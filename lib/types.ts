@@ -53,8 +53,8 @@ export interface Trade {
   id: string;
   offerer_id: string;
   receiver_id: string;
-  offered_sticker: string;
-  wanted_sticker: string;
+  offered_stickers: string[];  // e.g. ['ARG17', 'ESP15-BLUE']
+  wanted_stickers: string[];   // same length as offered_stickers
   status: TradeStatus;
   notes: string | null;
   created_at: string;
