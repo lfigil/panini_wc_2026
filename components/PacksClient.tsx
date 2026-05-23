@@ -107,13 +107,36 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
     }
   }
 
+  // Helper: upsert a single sticker into collection
+  async function upsertSticker(raw: string) {
+    const ref = parseStickerRef(raw);
+    const { data: existing } = await supabase
+      .from("collections")
+      .select("id, quantity")
+      .eq("user_id", userId)
+      .eq("sticker_id", ref.id)
+      .eq("variant", ref.variant)
+      .maybeSingle();
+    if (existing) {
+      await supabase.from("collections").update({ quantity: existing.quantity + 1 }).eq("id", existing.id);
+    } else {
+      await supabase.from("collections").insert({ user_id: userId, sticker_id: ref.id, variant: ref.variant, quantity: 1 });
+    }
+  }
+
   async function submitPack() {
     setError(null);
     setSuccess(null);
     const stickersToLog = getStickersFromMode();
+    const count = stickersToLog.length;
 
-    if (stickersToLog.length !== 7) {
-      setError(`Need exactly 7 stickers. You have ${stickersToLog.length}.`);
+    // Must be a multiple of 7
+    if (count === 0) {
+      setError("No stickers entered.");
+      return;
+    }
+    if (count % 7 !== 0) {
+      setError(`${count} stickers entered — needs to be a multiple of 7. Add ${7 - (count % 7)} more.`);
       return;
     }
 
@@ -126,70 +149,64 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
     setSaving(true);
 
     try {
-      const packNumber = getNextPackNumber();
+      const packCount = valid.length / 7;
+      const newLogs: typeof logs = [];
 
-      // Insert pack log
-      const { data: packLog, error: packErr } = await supabase
-        .from("pack_logs")
-        .insert({
-          user_id: userId,
-          box_id: selectedBoxId || null,
-          pack_number: packNumber,
-          input_method: mode,
-          sticker_ids: valid,
-          new_count: 0,
-        })
-        .select()
-        .single();
+      // Track already-owned IDs before this session for new_count calculation
+      const alreadyOwned = new Set(
+        logs.flatMap((l) => l.sticker_ids.map((s) => parseStickerRef(s).id))
+      );
+      // Also track what we've inserted THIS session (so pack 2 sees pack 1's stickers)
+      const seenThisSession = new Set<string>();
 
-      if (packErr) throw packErr;
+      // Get starting pack number for box
+      let nextPackNum = getNextPackNumber();
 
-      // Upsert collection rows — one query per sticker using maybeSingle()
-      // maybeSingle() returns null (not an error) when no row exists
-      for (const raw of valid) {
-        const ref = parseStickerRef(raw);
+      for (let p = 0; p < packCount; p++) {
+        const packStickers = valid.slice(p * 7, p * 7 + 7);
 
-        const { data: existing } = await supabase
-          .from("collections")
-          .select("id, quantity")
-          .eq("user_id", userId)
-          .eq("sticker_id", ref.id)
-          .eq("variant", ref.variant)
-          .maybeSingle();
+        // Insert pack log
+        const { data: packLog, error: packErr } = await supabase
+          .from("pack_logs")
+          .insert({
+            user_id: userId,
+            box_id: selectedBoxId || null,
+            pack_number: nextPackNum !== null ? nextPackNum + p : null,
+            input_method: mode,
+            sticker_ids: packStickers,
+            new_count: 0,
+          })
+          .select()
+          .single();
 
-        if (existing) {
-          await supabase
-            .from("collections")
-            .update({ quantity: existing.quantity + 1 })
-            .eq("id", existing.id);
-        } else {
-          await supabase
-            .from("collections")
-            .insert({
-              user_id: userId,
-              sticker_id: ref.id,
-              variant: ref.variant,
-              quantity: 1,
-            });
+        if (packErr) throw packErr;
+
+        // Upsert collection for each sticker in this pack
+        for (const raw of packStickers) {
+          await upsertSticker(raw);
         }
+
+        // Compute new_count: new if not previously owned AND not seen this session
+        const newCount = packStickers.filter((raw) => {
+          const id = parseStickerRef(raw).id;
+          return !alreadyOwned.has(id) && !seenThisSession.has(id);
+        }).length;
+
+        // Add this pack's stickers to session tracking
+        packStickers.forEach((raw) => seenThisSession.add(parseStickerRef(raw).id));
+
+        await supabase.from("pack_logs").update({ new_count: newCount }).eq("id", packLog.id);
+        newLogs.push({ ...packLog, new_count: newCount });
       }
 
-      // Compute new_count (stickers not previously owned)
-      const newCount = valid.filter((raw) => {
-        const ref = parseStickerRef(raw);
-        return !logs.some((l) =>
-          l.sticker_ids.some((s) => parseStickerRef(s).id === ref.id)
-        );
-      }).length;
-
-      await supabase
-        .from("pack_logs")
-        .update({ new_count: newCount })
-        .eq("id", packLog.id);
-
-      // Update local state
-      setLogs((prev) => [{ ...packLog, new_count: newCount }, ...prev]);
-      setSuccess(`Pack logged! ${newCount} new stickers.`);
+      // Update local state — prepend all new logs
+      setLogs((prev) => [...newLogs.reverse(), ...prev]);
+      const totalNew = newLogs.reduce((s, l) => s + l.new_count, 0);
+      setSuccess(
+        packCount === 1
+          ? `Pack logged! ${totalNew} new stickers.`
+          : `${packCount} packs logged! ${totalNew} new stickers total.`
+      );
 
       // Reset inputs
       setManualInputs(Array(7).fill(""));
@@ -197,7 +214,7 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
       setScanPreview([]);
       setScanImage(null);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to save pack");
+      setError(err instanceof Error ? err.message : "Failed to save packs");
     } finally {
       setSaving(false);
     }
@@ -365,7 +382,7 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
           {mode === "bulk" && (
             <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
               <p className="text-xs text-gray-500 mb-2">
-                Paste 7 IDs separated by spaces, commas, or newlines.
+                Paste stickers separated by spaces, commas, or newlines. Must be a multiple of 7 (14, 21, 28...).
                 Use <code className="bg-gray-100 px-1 rounded">ARG2-ORANGE</code> for variants.
               </p>
               <textarea
@@ -378,9 +395,24 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
                 autoCapitalize="characters"
                 className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-gray-900 placeholder-gray-400 bg-white"
               />
-              <p className="text-xs text-gray-400 mt-1">
-                {bulkText.split(/[\s,\n]+/).filter(Boolean).length}/7 stickers
-              </p>
+              {(() => {
+                const count = bulkText.split(/[\s,\n]+/).filter(Boolean).length;
+                const packs = Math.floor(count / 7);
+                const rem = count % 7;
+                const isValid = count > 0 && rem === 0;
+                const color = count === 0 ? "#9ca3af" : isValid ? "#4ade80" : "#f87171";
+                return (
+                  <p className="text-xs mt-1" style={{ color }}>
+                    {count} stickers
+                    {count > 0 && (
+                      <span> · {isValid
+                        ? `${packs} pack${packs > 1 ? "s" : ""} ✓`
+                        : `needs ${7 - rem} more to complete pack ${packs + 1}`}
+                      </span>
+                    )}
+                  </p>
+                );
+              })()}
             </div>
           )}
 
@@ -388,7 +420,7 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
           {mode === "scan" && (
             <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm space-y-3">
               <p className="text-xs text-gray-500">
-                Photograph the back of your 7 stickers. Claude will extract the IDs automatically.
+                Photograph sticker backs — up to 4 packs (28 stickers) per photo. Must be a multiple of 7. Claude extracts the IDs automatically.
               </p>
               <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-blue-400 transition-colors bg-gray-50">
                 <Camera size={24} className="text-gray-400 mb-1" />
@@ -414,38 +446,70 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
                   <p className="text-xs font-medium text-gray-700 mb-2">
                     Extracted IDs — tap to correct:
                   </p>
-                  <div className="grid grid-cols-1 gap-1.5">
-                    {Array.from({ length: 7 }, (_, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <span className="text-xs text-gray-400 w-5 text-right">{i + 1}</span>
-                        <input
-                          type="text"
-                          value={scanPreview[i] ?? ""}
-                          onChange={(e) => {
-                            const next = [...scanPreview];
-                            next[i] = e.target.value.toUpperCase();
-                            while (next.length < 7) next.push("");
-                            setScanPreview(next.slice(0, 7));
-                          }}
-                          className={`flex-1 px-3 py-1.5 text-sm rounded-lg border font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase text-gray-900 ${
-                            scanPreview[i]
-                              ? stickerIds.has(parseStickerRef(scanPreview[i]).id)
-                                ? "border-green-300 bg-green-50"
-                                : "border-red-300 bg-red-50"
-                              : "border-gray-200"
-                          }`}
-                        />
-                        {scanPreview[i] && (
-                          <span className="text-xs">
-                            {stickerIds.has(parseStickerRef(scanPreview[i]).id) ? "✅" : "❌"}
-                          </span>
+                  {(() => {
+                    // Round up to next multiple of 7 for slot count (min 7, max 28)
+                    const filled = scanPreview.filter(s => s.trim()).length;
+                    const slotCount = Math.min(28, Math.max(7, Math.ceil(filled / 7) * 7));
+                    const packs = slotCount / 7;
+                    const validCount = scanPreview.filter((s) => s && stickerIds.has(parseStickerRef(s).id)).length;
+                    const rem = filled % 7;
+                    const isValid = filled > 0 && rem === 0;
+                    return (
+                      <>
+                        {Array.from({ length: packs }, (_, packIdx) => (
+                          <div key={packIdx} className="mb-3">
+                            <p className="text-xs font-semibold text-gray-500 mb-1.5">Pack {packIdx + 1}</p>
+                            <div className="grid grid-cols-1 gap-1.5">
+                              {Array.from({ length: 7 }, (_, j) => {
+                                const i = packIdx * 7 + j;
+                                return (
+                                  <div key={i} className="flex items-center gap-2">
+                                    <span className="text-xs text-gray-400 w-5 text-right">{j + 1}</span>
+                                    <input
+                                      type="text"
+                                      value={scanPreview[i] ?? ""}
+                                      onChange={(e) => {
+                                        const next = [...scanPreview];
+                                        while (next.length <= i) next.push("");
+                                        next[i] = e.target.value.toUpperCase();
+                                        setScanPreview(next);
+                                      }}
+                                      spellCheck={false} autoCorrect="off" autoCapitalize="characters"
+                                      className={`flex-1 px-3 py-1.5 text-base rounded-lg border font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase text-gray-900 ${
+                                        scanPreview[i]
+                                          ? stickerIds.has(parseStickerRef(scanPreview[i]).id)
+                                            ? "border-green-300 bg-green-50"
+                                            : "border-red-300 bg-red-50"
+                                          : "border-gray-200"
+                                      }`}
+                                    />
+                                    {scanPreview[i] && (
+                                      <span className="text-xs">
+                                        {stickerIds.has(parseStickerRef(scanPreview[i]).id) ? "✅" : "❌"}
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                        <p className="text-xs mt-1" style={{ color: isValid ? "#4ade80" : filled > 0 ? "#f87171" : "#9ca3af" }}>
+                          {validCount} valid · {filled} filled
+                          {filled > 0 && !isValid && ` · needs ${7 - rem} more for pack ${Math.floor(filled / 7) + 1}`}
+                          {isValid && ` · ${filled / 7} pack${filled / 7 > 1 ? "s" : ""} ✓`}
+                        </p>
+                        {filled > 0 && filled < 28 && isValid && (
+                          <button
+                            onClick={() => setScanPreview(prev => [...prev, ...Array(7).fill("")])}
+                            className="text-xs text-blue-500 hover:text-blue-400 mt-1"
+                          >
+                            + Add another pack slot
+                          </button>
                         )}
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-xs text-gray-400 mt-2">
-                    {scanPreview.filter((s) => s && stickerIds.has(parseStickerRef(s).id)).length}/7 valid
-                  </p>
+                      </>
+                    );
+                  })()}
                 </div>
               )}
             </div>
@@ -472,7 +536,7 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
             {saving ? (
               <><Loader2 size={16} className="animate-spin" /> Saving…</>
             ) : (
-              <><Package size={16} /> Log pack</>
+              <><Package size={16} /> {mode === "manual" ? "Log pack" : `Log ${Math.floor((mode === "bulk" ? bulkText.split(/[\s,\n]+/).filter(Boolean).length : scanPreview.filter(s=>s.trim()).length) / 7) || 1} pack${Math.floor((mode === "bulk" ? bulkText.split(/[\s,\n]+/).filter(Boolean).length : scanPreview.filter(s=>s.trim()).length) / 7) > 1 ? "s" : ""}`}</>
             )}
           </button>
         </div>
