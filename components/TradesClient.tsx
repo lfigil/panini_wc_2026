@@ -252,12 +252,74 @@ export default function TradesClient({
 
   function switchTab(t: Tab) { setTab(t); setError(null); setSuccess(null); }
 
+  // Upsert a sticker into the current user's collection (+1 quantity)
+  async function addToMyCollection(raw: string) {
+    const ref = parseStickerRef(raw);
+    const { data: existing } = await supabase
+      .from("collections")
+      .select("id, quantity")
+      .eq("user_id", userId)
+      .eq("sticker_id", ref.id)
+      .eq("variant", ref.variant)
+      .maybeSingle();
+    if (existing) {
+      await supabase.from("collections").update({ quantity: existing.quantity + 1 }).eq("id", existing.id);
+    } else {
+      await supabase.from("collections").insert({ user_id: userId, sticker_id: ref.id, variant: ref.variant, quantity: 1 });
+    }
+  }
+
+  // Decrement a sticker from the current user's collection (-1, remove if reaches 0)
+  async function removeFromMyCollection(raw: string) {
+    const ref = parseStickerRef(raw);
+    const { data: existing } = await supabase
+      .from("collections")
+      .select("id, quantity")
+      .eq("user_id", userId)
+      .eq("sticker_id", ref.id)
+      .eq("variant", ref.variant)
+      .maybeSingle();
+    if (!existing) return;
+    if (existing.quantity <= 1) {
+      await supabase.from("collections").delete().eq("id", existing.id);
+    } else {
+      await supabase.from("collections").update({ quantity: existing.quantity - 1 }).eq("id", existing.id);
+    }
+  }
+
   async function updateTradeStatus(id: string, status: TradeStatus) {
     setLoadingId(id);
     setError(null);
+
     const { error: err } = await supabase.from("trades").update({ status }).eq("id", id);
-    if (err) setError(err.message);
-    else setTrades((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
+    if (err) {
+      setError(err.message);
+      setLoadingId(null);
+      return;
+    }
+
+    // When completing a trade, update the current user's collection
+    if (status === "completed") {
+      const trade = trades.find((t) => t.id === id);
+      if (trade) {
+        const isOfferer = trade.offerer_id === userId;
+        // Stickers I gave away — decrement from my collection
+        const iGaveAway = isOfferer ? trade.offered_stickers : trade.wanted_stickers;
+        // Stickers I received — add to my collection
+        const iReceived = isOfferer ? trade.wanted_stickers : trade.offered_stickers;
+
+        try {
+          for (const raw of iGaveAway) await removeFromMyCollection(raw);
+          for (const raw of iReceived) await addToMyCollection(raw);
+          setSuccess(`Trade completed! Received: ${iReceived.join(", ")}`);
+        } catch (collectionErr) {
+          // Trade status is already updated — just warn about collection sync
+          setError("Trade marked complete but collection sync failed. Refresh to see latest data.");
+        }
+      }
+    }
+
+    setTrades((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
     setLoadingId(null);
   }
 
