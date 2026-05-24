@@ -14,10 +14,11 @@ function createPublicClient() {
 export default async function UserSharePage({
   params,
 }: {
-  params: { username: string };
+  params: Promise<{ username: string }>;
 }) {
   const supabase = createPublicClient();
-  const username = decodeURIComponent(params.username);
+  const { username: rawUsername } = await params;
+  const username = decodeURIComponent(rawUsername);
 
   // Look up profile by display_name
   const { data: profile } = await supabase
@@ -74,9 +75,10 @@ export default async function UserSharePage({
   );
 }
 
-export async function generateMetadata({ params }: { params: { username: string } }) {
+export async function generateMetadata({ params }: { params: Promise<{ username: string }> }) {
+  const { username } = await params;
   return {
-    title: `${decodeURIComponent(params.username)}'s WC2026 Album`,
+    title: `${decodeURIComponent(username)}'s WC2026 Album`,
     description: "Panini World Cup 2026 sticker collection — trade list",
   };
 }
