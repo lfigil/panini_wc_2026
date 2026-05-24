@@ -30,10 +30,11 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const isAuthPage = request.nextUrl.pathname.startsWith("/login");
+  const isSharePage = request.nextUrl.pathname.startsWith("/share/");
   const isApiRoute = request.nextUrl.pathname.startsWith("/api");
 
   // Redirect unauthenticated users to login
-  if (!user && !isAuthPage && !isApiRoute) {
+  if (!user && !isAuthPage && !isApiRoute && !isSharePage) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

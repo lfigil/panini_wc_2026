@@ -8,13 +8,22 @@ interface Props {
   email: string;
   displayName: string;
   stats: { packs: number; stickers: number; boxes: number };
+  appUrl: string;
 }
 
 type ResetStep = "idle" | "confirm1" | "confirm2" | "deleting" | "done";
 
-export default function SettingsClient({ email, displayName, stats }: Props) {
+export default function SettingsClient({ email, displayName, stats, appUrl }: Props) {
   const router = useRouter();
   const [step, setStep] = useState<ResetStep>("idle");
+  const [copiedShare, setCopiedShare] = useState(false);
+  const shareUrl = `${appUrl}/share/${encodeURIComponent(displayName)}`;
+
+  async function copyShareUrl() {
+    await navigator.clipboard.writeText(shareUrl);
+    setCopiedShare(true);
+    setTimeout(() => setCopiedShare(false), 2000);
+  }
   const [typedConfirm, setTypedConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -74,6 +83,46 @@ export default function SettingsClient({ email, displayName, stats }: Props) {
               <p style={{ fontSize: "10px", color: "#52525b", marginTop: "2px" }}>{label}</p>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Share section */}
+      <div style={ss}>
+        <p style={{ fontSize: "13px", fontWeight: 600, color: "#f4f4f5", marginBottom: "4px" }}>Your public trade page</p>
+        <p style={{ fontSize: "11px", color: "#71717a", marginBottom: "12px" }}>
+          Share this link with anyone — no account needed. Shows your duplicates and missing stickers.
+        </p>
+
+        {/* Share URL */}
+        <div style={{ background: "#18181b", borderRadius: "10px", padding: "10px 12px", marginBottom: "10px", display: "flex", alignItems: "center", gap: "8px" }}>
+          <p style={{ fontFamily: "monospace", fontSize: "12px", color: "#a1a1aa", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {shareUrl}
+          </p>
+          <button onClick={copyShareUrl} style={{
+            display: "flex", alignItems: "center", gap: "4px", padding: "5px 10px",
+            borderRadius: "8px", border: "none", fontSize: "11px", fontWeight: 600,
+            background: copiedShare ? "#052e16" : "#3f3f46",
+            color: copiedShare ? "#4ade80" : "#f4f4f5",
+            cursor: "pointer", flexShrink: 0,
+          }}>
+            {copiedShare ? "✓ Copied" : "Copy"}
+          </button>
+        </div>
+
+        {/* QR Code — generated client-side using a public API */}
+        <div style={{ textAlign: "center" }}>
+          <p style={{ fontSize: "11px", color: "#52525b", marginBottom: "8px" }}>QR code for in-person swaps</p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(shareUrl)}&bgcolor=18181b&color=f4f4f5&margin=2`}
+            alt="QR code for your trade page"
+            width={160}
+            height={160}
+            style={{ borderRadius: "12px", border: "1px solid #3f3f46" }}
+          />
+          <p style={{ fontSize: "10px", color: "#52525b", marginTop: "6px" }}>
+            Screenshot and share in WhatsApp groups
+          </p>
         </div>
       </div>
 

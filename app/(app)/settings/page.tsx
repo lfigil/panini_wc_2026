@@ -21,10 +21,13 @@ export default async function SettingsPage() {
       supabase.from("boxes").select("*", { count: "exact", head: true }).eq("user_id", user.id),
     ]);
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://panini.lfigil.com";
+
   return (
     <SettingsClient
       email={user.email ?? ""}
       displayName={profile?.display_name ?? ""}
+      appUrl={appUrl}
       stats={{
         packs: packCount ?? 0,
         stickers: collectionCount ?? 0,
