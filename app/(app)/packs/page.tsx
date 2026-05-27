@@ -2,6 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import PacksClient from "@/components/PacksClient";
 
+export const revalidate = 10; // reuse cached render for 10 seconds
+
+
 export default async function PacksPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
