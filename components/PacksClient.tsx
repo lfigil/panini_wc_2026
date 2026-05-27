@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Box, BOX_TYPE_LABELS, BOX_TYPE_PACKS, BoxType, parseStickerRef } from "@/lib/types";
-import { Package, Plus, Camera, List, Hash, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { Package, Plus, Camera, List, Hash, ChevronDown, ChevronUp, Loader2, Trash2 } from "lucide-react";
 
 interface PackLog {
   id: string;
@@ -49,6 +49,8 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
   const [newBoxType, setNewBoxType] = useState<BoxType>("regular");
   const [newBoxNotes, setNewBoxNotes] = useState("");
   const [creatingBox, setCreatingBox] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const stickerIds = new Set(stickers.map((s) => s.id));
 
@@ -240,6 +242,41 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
       setNewBoxNotes("");
     }
     setCreatingBox(false);
+  }
+
+  async function deletePackLog(logId: string) {
+    setDeletingId(logId);
+    const log = logs.find((l) => l.id === logId);
+    if (!log) { setDeletingId(null); return; }
+
+    try {
+      // Decrement collection for each sticker in this pack
+      for (const raw of log.sticker_ids) {
+        const ref = parseStickerRef(raw);
+        const { data: existing } = await supabase
+          .from("collections")
+          .select("id, quantity")
+          .eq("user_id", userId)
+          .eq("sticker_id", ref.id)
+          .eq("variant", ref.variant)
+          .maybeSingle();
+        if (existing) {
+          if (existing.quantity <= 1) {
+            await supabase.from("collections").delete().eq("id", existing.id);
+          } else {
+            await supabase.from("collections").update({ quantity: existing.quantity - 1 }).eq("id", existing.id);
+          }
+        }
+      }
+      // Delete the pack log
+      await supabase.from("pack_logs").delete().eq("id", logId);
+      setLogs((prev) => prev.filter((l) => l.id !== logId));
+      setConfirmDeleteId(null);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to delete pack");
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   const selectedBox = boxes.find((b) => b.id === selectedBoxId);
@@ -586,64 +623,101 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
       {tab === "history" && (
         <div className="px-4 py-5 space-y-3">
           {logs.length === 0 ? (
-            <div className="text-center py-10 text-gray-400">
+            <div className="text-center py-10 text-zinc-500">
               <p className="text-sm">No packs logged yet</p>
             </div>
           ) : (
-            logs.map((log) => (
-              <div key={log.id} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <p className="text-xs font-semibold text-gray-700">
-                      {log.boxes?.box_type
-                        ? BOX_TYPE_LABELS[log.boxes.box_type as BoxType]
-                        : "Loose pack"}
-                      {log.pack_number ? ` · #${log.pack_number}` : ""}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {new Date(log.opened_at).toLocaleDateString()} ·{" "}
-                      <span className="capitalize">{log.input_method}</span>
-                    </p>
-                  </div>
-                  <span
-                    className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                      log.new_count > 4
-                        ? "bg-green-100 text-green-700"
-                        : log.new_count > 2
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-gray-100 text-gray-600"
-                    }`}
-                  >
-                    {log.new_count} new
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {log.sticker_ids.map((sid, i) => {
-                    const parts = sid.split("-");
-                    const variant = parts.length > 1 ? parts[parts.length - 1].toLowerCase() : "standard";
-                    // All 6 parallels + standard
-                    const variantStyle: Record<string, string> = {
-                      standard: "bg-gray-50 border-gray-200 text-gray-700",
-                      orange:   "bg-orange-100 border-orange-400 text-orange-900",
-                      blue:     "bg-blue-100 border-blue-400 text-blue-900",
-                      red:      "bg-red-100 border-red-400 text-red-900",
-                      green:    "bg-green-100 border-green-400 text-green-900",
-                      purple:   "bg-purple-100 border-purple-400 text-purple-900",
-                      black:    "bg-gray-800 border-gray-900 text-white",
-                    };
-                    const cls = variantStyle[variant] ?? "bg-gray-100 border-gray-300 text-gray-700";
-                    return (
-                      <span
-                        key={i}
-                        className={`font-mono text-xs border rounded px-1.5 py-0.5 font-medium ${cls}`}
-                      >
-                        {sid}
+            logs.map((log) => {
+              const isConfirming = confirmDeleteId === log.id;
+              const isDeleting = deletingId === log.id;
+              const variantStyle: Record<string, string> = {
+                standard: "bg-zinc-800 border-zinc-600 text-zinc-200",
+                orange:   "bg-orange-900/50 border-orange-500 text-orange-300",
+                blue:     "bg-blue-900/50 border-blue-500 text-blue-300",
+                red:      "bg-red-900/50 border-red-500 text-red-300",
+                green:    "bg-green-900/50 border-green-500 text-green-300",
+                purple:   "bg-purple-900/50 border-purple-500 text-purple-300",
+                black:    "bg-zinc-900 border-zinc-500 text-zinc-300",
+              };
+              return (
+                <div key={log.id} className={`rounded-xl p-4 border shadow-sm transition-all ${
+                  isConfirming ? "bg-red-950 border-red-800" : "bg-zinc-800 border-zinc-700"
+                }`}>
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <p className="text-xs font-semibold text-zinc-200">
+                        {log.boxes?.box_type
+                          ? BOX_TYPE_LABELS[log.boxes.box_type as BoxType]
+                          : "Loose pack"}
+                        {log.pack_number ? ` · #${log.pack_number}` : ""}
+                      </p>
+                      <p className="text-xs text-zinc-500">
+                        {new Date(log.opened_at).toLocaleDateString()} ·{" "}
+                        <span className="capitalize">{log.input_method}</span>
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                        log.new_count > 4 ? "bg-green-900/50 text-green-400"
+                        : log.new_count > 2 ? "bg-blue-900/50 text-blue-400"
+                        : "bg-zinc-700 text-zinc-400"
+                      }`}>
+                        {log.new_count} new
                       </span>
-                    );
-                  })}
+                      {!isConfirming && (
+                        <button
+                          onClick={() => setConfirmDeleteId(log.id)}
+                          className="text-zinc-600 hover:text-red-400 transition-colors p-1"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Sticker chips */}
+                  {!isConfirming && (
+                    <div className="flex flex-wrap gap-1">
+                      {log.sticker_ids.map((sid, i) => {
+                        const parts = sid.split("-");
+                        const variant = parts.length > 1 ? parts[parts.length - 1].toLowerCase() : "standard";
+                        const cls = variantStyle[variant] ?? variantStyle.standard;
+                        return (
+                          <span key={i} className={`font-mono text-xs border rounded px-1.5 py-0.5 font-medium ${cls}`}>
+                            {sid}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Delete confirmation */}
+                  {isConfirming && (
+                    <div>
+                      <p className="text-xs text-red-300 mb-3">
+                        Delete this pack log? Collection quantities will be decremented for all {log.sticker_ids.length} stickers.
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="flex-1 py-2 rounded-lg bg-zinc-700 text-zinc-300 text-xs font-semibold hover:bg-zinc-600 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => deletePackLog(log.id)}
+                          disabled={isDeleting}
+                          className="flex-1 py-2 rounded-lg bg-red-700 hover:bg-red-600 disabled:opacity-50 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+                        >
+                          {isDeleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                          {isDeleting ? "Deleting…" : "Delete"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       )}
