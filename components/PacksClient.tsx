@@ -287,15 +287,15 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
   return (
     <div className="max-w-lg mx-auto">
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 bg-white sticky top-14 z-10">
+      <div className="flex border-b border-zinc-700 bg-[#18181b] sticky top-14 z-10">
         {(["log", "boxes", "history"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`flex-1 py-3 text-sm font-medium capitalize transition-colors border-b-2 -mb-px ${
               tab === t
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
+                ? "border-blue-500 text-blue-400"
+                : "border-transparent text-zinc-500 hover:text-zinc-300"
             }`}
           >
             {t}
@@ -307,14 +307,14 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
       {tab === "log" && (
         <div className="px-4 py-5 space-y-4">
           {/* Box selector */}
-          <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
+          <div className="bg-[#27272a] rounded-xl p-4 border border-zinc-700">
+            <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">
               Box (optional)
             </label>
             <select
               value={selectedBoxId}
               onChange={(e) => setSelectedBoxId(e.target.value)}
-              className="w-full text-sm px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2 text-gray-900"
+              className="w-full text-sm px-3 py-2 rounded-lg border border-zinc-600 bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2 text-zinc-100"
             >
               <option value="">— Loose pack (no box) —</option>
               {boxes.map((b) => (
@@ -325,7 +325,7 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
               ))}
             </select>
             {selectedBox && (
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-zinc-500">
                 Next pack: #{boxPackCount + 1} of {selectedBox.total_packs}
               </p>
             )}
@@ -339,11 +339,11 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
             </button>
 
             {showNewBox && (
-              <div className="mt-3 space-y-2 border-t border-gray-100 pt-3">
+              <div className="mt-3 space-y-2 border-t border-zinc-700 pt-3">
                 <select
                   value={newBoxType}
                   onChange={(e) => setNewBoxType(e.target.value as BoxType)}
-                  className="w-full text-sm px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  className="w-full text-sm px-3 py-2 rounded-lg border border-zinc-600 bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-zinc-100"
                 >
                   {Object.entries(BOX_TYPE_LABELS).map(([k, v]) => (
                     <option key={k} value={k}>{v}</option>
@@ -354,12 +354,12 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
                   placeholder="Notes (optional — retailer, batch…)"
                   value={newBoxNotes}
                   onChange={(e) => setNewBoxNotes(e.target.value)}
-                  className="w-full text-sm px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-400"
+                  className="w-full text-sm px-3 py-2 rounded-lg border border-zinc-600 bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-zinc-100 placeholder-zinc-500"
                 />
                 <button
                   onClick={createBox}
                   disabled={creatingBox}
-                  className="w-full bg-gray-900 text-white text-sm py-2 rounded-lg hover:bg-gray-700 disabled:opacity-50 transition-colors"
+                  className="w-full bg-zinc-700 text-zinc-100 text-sm py-2 rounded-lg hover:bg-zinc-600 disabled:opacity-50 transition-colors"
                 >
                   {creatingBox ? "Creating…" : "Create box"}
                 </button>
@@ -376,7 +376,7 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
                 className={`flex-1 flex flex-col items-center py-2 rounded-xl text-xs font-medium border transition-colors ${
                   mode === m
                     ? "bg-blue-600 text-white border-blue-600"
-                    : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
+                    : "bg-zinc-800 text-zinc-400 border-zinc-700 hover:border-zinc-500"
                 }`}
               >
                 {m === "manual" && <Hash size={16} className="mb-1" />}
@@ -389,12 +389,12 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
 
           {/* Manual mode */}
           {mode === "manual" && (
-            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-              <p className="text-xs text-gray-500 mb-3">Enter each sticker ID. Add variant with a dash: <code className="bg-gray-100 px-1 rounded">ARG2-ORANGE</code></p>
+            <div className="bg-[#27272a] rounded-xl p-4 border border-zinc-700">
+              <p className="text-xs text-zinc-500 mb-3">Enter each sticker ID. Add variant with a dash: <code className="bg-zinc-700 px-1 rounded text-zinc-300">ARG2-ORANGE</code></p>
               <div className="grid grid-cols-1 gap-2">
                 {manualInputs.map((val, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <span className="text-xs text-gray-400 w-5 text-right">{i + 1}</span>
+                    <span className="text-xs text-zinc-500 w-5 text-right">{i + 1}</span>
                     <input
                       type="text"
                       value={val}
@@ -407,7 +407,7 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
                       spellCheck={false}
                       autoCorrect="off"
                       autoCapitalize="characters"
-                      className="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-300 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase text-gray-900 placeholder-gray-400 bg-white"
+                      className="flex-1 px-3 py-2 text-sm rounded-lg border border-zinc-600 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase text-zinc-100 placeholder-zinc-600 bg-zinc-800"
                     />
                   </div>
                 ))}
@@ -417,10 +417,10 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
 
           {/* Bulk mode */}
           {mode === "bulk" && (
-            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-              <p className="text-xs text-gray-500 mb-2">
+            <div className="bg-[#27272a] rounded-xl p-4 border border-zinc-700">
+              <p className="text-xs text-zinc-500 mb-2">
                 Paste stickers separated by spaces, commas, or newlines. Must be a multiple of 7 (14, 21, 28...).
-                Use <code className="bg-gray-100 px-1 rounded">ARG2-ORANGE</code> for variants.
+                Use <code className="bg-zinc-700 px-1 rounded text-zinc-300">ARG2-ORANGE</code> for variants.
               </p>
               <textarea
                 value={bulkText}
@@ -430,7 +430,7 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
                 spellCheck={false}
                 autoCorrect="off"
                 autoCapitalize="characters"
-                className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-gray-900 placeholder-gray-400 bg-white"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-600 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-zinc-100 placeholder-zinc-600 bg-zinc-800"
               />
               {(() => {
                 const count = bulkText.split(/[\s,\n]+/).filter(Boolean).length;
@@ -455,13 +455,13 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
 
           {/* Scan mode */}
           {mode === "scan" && (
-            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm space-y-3">
-              <p className="text-xs text-gray-500">
+            <div className="bg-[#27272a] rounded-xl p-4 border border-zinc-700 space-y-3">
+              <p className="text-xs text-zinc-500">
                 Photograph sticker backs — up to 4 packs (28 stickers) per photo. Must be a multiple of 7. Claude extracts the IDs automatically.
               </p>
-              <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-blue-400 transition-colors bg-gray-50">
-                <Camera size={24} className="text-gray-400 mb-1" />
-                <span className="text-xs text-gray-500">Tap to take photo or upload</span>
+              <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-zinc-600 rounded-xl cursor-pointer hover:border-blue-500 transition-colors bg-zinc-900">
+                <Camera size={24} className="text-zinc-500 mb-1" />
+                <span className="text-xs text-zinc-500">Tap to take photo or upload</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -480,7 +480,7 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
 
               {scanPreview.length > 0 && (
                 <div>
-                  <p className="text-xs font-medium text-gray-700 mb-2">
+                  <p className="text-xs font-medium text-zinc-300 mb-2">
                     Extracted IDs — tap to correct:
                   </p>
                   {(() => {
@@ -495,13 +495,13 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
                       <>
                         {Array.from({ length: packs }, (_, packIdx) => (
                           <div key={packIdx} className="mb-3">
-                            <p className="text-xs font-semibold text-gray-500 mb-1.5">Pack {packIdx + 1}</p>
+                            <p className="text-xs font-semibold text-zinc-500 mb-1.5">Pack {packIdx + 1}</p>
                             <div className="grid grid-cols-1 gap-1.5">
                               {Array.from({ length: 7 }, (_, j) => {
                                 const i = packIdx * 7 + j;
                                 return (
                                   <div key={i} className="flex items-center gap-2">
-                                    <span className="text-xs text-gray-400 w-5 text-right">{j + 1}</span>
+                                    <span className="text-xs text-zinc-500 w-5 text-right">{j + 1}</span>
                                     <input
                                       type="text"
                                       value={scanPreview[i] ?? ""}
@@ -512,12 +512,12 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
                                         setScanPreview(next);
                                       }}
                                       spellCheck={false} autoCorrect="off" autoCapitalize="characters"
-                                      className={`flex-1 px-3 py-1.5 text-base rounded-lg border font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase text-gray-900 ${
+                                      className={`flex-1 px-3 py-1.5 text-base rounded-lg border font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase text-zinc-100 ${
                                         scanPreview[i]
                                           ? stickerIds.has(parseStickerRef(scanPreview[i]).id)
-                                            ? "border-green-300 bg-green-50"
-                                            : "border-red-300 bg-red-50"
-                                          : "border-gray-200"
+                                            ? "border-green-500 bg-green-900/30"
+                                            : "border-red-500 bg-red-900/30"
+                                          : "border-zinc-600 bg-zinc-800"
                                       }`}
                                     />
                                     {scanPreview[i] && (
@@ -583,7 +583,7 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
       {tab === "boxes" && (
         <div className="px-4 py-5 space-y-3">
           {boxes.length === 0 ? (
-            <div className="text-center py-10 text-gray-400">
+            <div className="text-center py-10 text-zinc-500">
               <Package size={32} className="mx-auto mb-2 opacity-50" />
               <p className="text-sm">No boxes yet</p>
               <p className="text-xs mt-1">Add one in the Log tab</p>
@@ -593,25 +593,25 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
               const count = logs.filter((l) => l.box_id === box.id).length;
               const pct = Math.round((count / box.total_packs) * 100);
               return (
-                <div key={box.id} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+                <div key={box.id} className="bg-[#27272a] rounded-xl p-4 border border-zinc-700">
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">
+                      <p className="text-sm font-semibold text-zinc-100">
                         {BOX_TYPE_LABELS[box.box_type]}
                       </p>
                       {box.notes && (
-                        <p className="text-xs text-gray-500">{box.notes}</p>
+                        <p className="text-xs text-zinc-500">{box.notes}</p>
                       )}
                     </div>
-                    <span className="text-xs font-bold text-blue-600">{pct}%</span>
+                    <span className="text-xs font-bold text-blue-400">{pct}%</span>
                   </div>
-                  <div className="w-full bg-gray-100 rounded-full h-1.5 mb-1">
+                  <div className="w-full bg-zinc-700 rounded-full h-1.5 mb-1">
                     <div
                       className="bg-blue-500 h-1.5 rounded-full"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
-                  <p className="text-xs text-gray-400">{count}/{box.total_packs} packs opened</p>
+                  <p className="text-xs text-zinc-500">{count}/{box.total_packs} packs opened</p>
                 </div>
               );
             })
