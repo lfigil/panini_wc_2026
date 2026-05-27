@@ -470,7 +470,16 @@ export default function AlbumGrid({ userId, teams, stickers, collection: initial
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ background: "#27272a", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: "480px", padding: "20px 20px 32px", border: "1px solid #3f3f46" }}
+            style={{
+              background: "#27272a",
+              borderRadius: "20px 20px 0 0",
+              width: "100%",
+              maxWidth: "480px",
+              maxHeight: "85vh",
+              overflowY: "auto",
+              padding: "20px 20px 88px", /* 88px = nav height (64px) + extra breathing room */
+              border: "1px solid #3f3f46",
+            }}
           >
             <div style={{ width: "40px", height: "4px", background: "#52525b", borderRadius: "99px", margin: "0 auto 16px" }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
