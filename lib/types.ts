@@ -94,8 +94,12 @@ export function parseStickerRef(raw: string): StickerRef {
   const parts = raw.toUpperCase().split("-");
   if (parts.length === 1) return { id: parts[0], variant: "standard" };
   const variantMap: Record<string, Variant> = {
-    ORANGE: "orange",
-    BLUE: "blue",
+    ORANGE:   "orange",
+    BLUE:     "blue",
+    RED:      "red",
+    GREEN:    "green",
+    PURPLE:   "purple",
+    BLACK:    "black",
     STANDARD: "standard",
   };
   return {
