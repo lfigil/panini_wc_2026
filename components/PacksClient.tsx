@@ -556,12 +556,12 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
 
           {/* Errors / success */}
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
+            <div className="bg-red-900/30 border border-red-700 text-red-400 text-sm rounded-xl px-4 py-3">
               {error}
             </div>
           )}
           {success && (
-            <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-xl px-4 py-3">
+            <div className="bg-green-900/30 border border-green-700 text-green-400 text-sm rounded-xl px-4 py-3">
               {success}
             </div>
           )}
