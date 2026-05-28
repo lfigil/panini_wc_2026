@@ -13,7 +13,7 @@ export default async function DashboardPage() {
     supabase.from("user_completion").select("*").eq("user_id", user.id).single(),
     supabase.from("user_team_completion").select("*").eq("user_id", user.id).order("pct", { ascending: false }),
     supabase.from("pack_logs").select("id, new_count, opened_at, boxes(box_type)").eq("user_id", user.id).order("opened_at", { ascending: false }).limit(5),
-    supabase.from("collections").select("quantity").eq("user_id", user.id),
+    supabase.from("collections").select("sticker_id, quantity").eq("user_id", user.id),
   ]);
 
   const completion = completionRes.data;
@@ -24,7 +24,12 @@ export default async function DashboardPage() {
   const collected = completion?.unique_collected ?? 0;
   const total = completion?.total_stickers ?? 980;
   const pct = completion?.completion_pct ?? 0;
-  const totalDuplicates = allCollection.reduce((sum, r) => sum + Math.max(0, r.quantity - 1), 0);
+  // Count duplicates by base sticker ID (variants of same sticker = duplicate)
+  const stickerTotals = new Map<string, number>();
+  for (const r of allCollection) {
+    stickerTotals.set(r.sticker_id, (stickerTotals.get(r.sticker_id) ?? 0) + r.quantity);
+  }
+  const totalDuplicates = [...stickerTotals.values()].reduce((sum, qty) => sum + Math.max(0, qty - 1), 0);
   const fullTeams = teamCompletion.filter(t => t.pct === 100).length;
   const inProgress = teamCompletion.filter(t => t.pct > 0 && t.pct < 100).length;
 
