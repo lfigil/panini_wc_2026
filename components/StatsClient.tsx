@@ -189,7 +189,12 @@ export default function StatsClient({ packLogs, boxes, collection, completion, s
 
   const totalPacks = packLogs.length;
   const totalStickersLogged = totalPacks * 7;
-  const totalDuplicates = collection.reduce((s, r) => s + Math.max(0, r.quantity - 1), 0);
+  // Count duplicates by base sticker ID (variants of same sticker = duplicate)
+  const stickerTotals = new Map<string, number>();
+  for (const r of collection) {
+    stickerTotals.set(r.sticker_id, (stickerTotals.get(r.sticker_id) ?? 0) + r.quantity);
+  }
+  const totalDuplicates = [...stickerTotals.values()].reduce((sum, qty) => sum + Math.max(0, qty - 1), 0);
   const totalNew = packLogs.reduce((s, p) => s + p.new_count, 0);
   const avgNewPerPack = totalPacks > 0 ? totalNew / totalPacks : 3.5;
   const avgNewPerPackStr = avgNewPerPack.toFixed(1);
