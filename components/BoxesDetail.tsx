@@ -110,7 +110,15 @@ function BoxDetailCard({ box, boxLogs, stickers }: {
   const opened = boxLogs.length;
   const totalNew = boxLogs.reduce((s, l) => s + l.new_count, 0);
   const avgNew = opened > 0 ? (totalNew / opened).toFixed(1) : "0";
-  const totalDupes = boxLogs.reduce((s, l) => s + (7 - l.new_count), 0);
+  // Count true duplicates: sticker IDs seen more than once across all packs in this box
+  const boxStickerCounts = new Map<string, number>();
+  for (const log of boxLogs) {
+    for (const raw of log.sticker_ids) {
+      const baseId = raw.split("-")[0];
+      boxStickerCounts.set(baseId, (boxStickerCounts.get(baseId) ?? 0) + 1);
+    }
+  }
+  const totalDupes = [...boxStickerCounts.values()].reduce((s, qty) => s + Math.max(0, qty - 1), 0);
 
   // Best and worst packs
   const best = opened > 0 ? boxLogs.reduce((a, b) => a.new_count >= b.new_count ? a : b) : null;

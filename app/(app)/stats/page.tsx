@@ -2,8 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import StatsClient from "@/components/StatsClient";
 
-export const revalidate = 10; // reuse cached render for 10 seconds
-
 
 export default async function StatsPage() {
   const supabase = await createClient();

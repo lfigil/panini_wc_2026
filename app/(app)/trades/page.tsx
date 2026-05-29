@@ -2,8 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import TradesClient from "@/components/TradesClient";
 
-export const revalidate = 10; // reuse cached render for 10 seconds
-
 
 export default async function TradesPage() {
   const supabase = await createClient();

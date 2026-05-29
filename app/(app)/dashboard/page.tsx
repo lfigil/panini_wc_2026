@@ -2,8 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { BOX_TYPE_LABELS, BoxType } from "@/lib/types";
 
-export const revalidate = 10;
-
 export default async function DashboardPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -89,7 +87,7 @@ export default async function DashboardPage() {
                     <p className="text-xs font-medium text-zinc-200">
                       {boxType ? BOX_TYPE_LABELS[boxType as BoxType] : "Loose pack"}
                     </p>
-                    <p className="text-xs text-zinc-500">{new Date(p.opened_at).toLocaleDateString()}</p>
+                    <p className="text-xs text-zinc-500">{new Date(p.opened_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</p>
                   </div>
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                     p.new_count > 4 ? "bg-green-900/50 text-green-400"

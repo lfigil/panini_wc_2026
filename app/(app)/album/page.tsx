@@ -2,8 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import AlbumGrid from "@/components/AlbumGrid";
 
-export const revalidate = 10; // reuse cached render for 10 seconds
-
 
 export default async function AlbumPage() {
   const supabase = await createClient();

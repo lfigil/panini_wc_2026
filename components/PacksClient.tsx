@@ -624,7 +624,7 @@ export default function PacksClient({ userId, boxes: initialBoxes, packLogs: ini
                         {log.pack_number ? ` · #${log.pack_number}` : ""}
                       </p>
                       <p className="text-xs text-zinc-500">
-                        {new Date(log.opened_at).toLocaleDateString()} ·{" "}
+                        {new Date(log.opened_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} ·{" "}
                         <span className="capitalize">{log.input_method}</span>
                       </p>
                     </div>
